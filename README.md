@@ -131,7 +131,7 @@ I've also developed a monitoring bot for Polymarket built with **Rust** - it's a
 
 <img width="1674" height="937" alt="image (20)" src="https://github.com/user-attachments/assets/99d1301a-9426-45af-973d-f647434c704a" />
 
-Demo: https://www.youtube.com/watch?v=qgdRd8X-oHM
+Demo: https://www.youtube.com/watch?v=qgdRd8X-oHM  </n>
 There is executable file in my repo.
 
 **Disclaimer:** This software is for educational purposes only. Trading involves risk of loss. The developers are not responsible for any financial losses incurred while using this bot.
