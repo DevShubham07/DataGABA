@@ -1,129 +1,64 @@
-# Polymarket Copy Trading Bot
+# Polymarket Realtime Data Logger
 
-> Automated copy trading bot for Polymarket that mirrors trades from top performers with intelligent position sizing and real-time execution.
+This repo has been trimmed down to only collect **realtime market data** (CLOB `market` websocket) and user activity (Data API polling and/or CLOB `user` websocket when available), with timestamps suitable for correlation / reverse engineering.
 
-[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+## What it writes (analysis-friendly)
 
-## Overview
+For each `slugId`, it writes to:
 
-The Polymarket Copy Trading Bot automatically replicates trades from successful Polymarket traders to your wallet. It monitors trader activity 24/7, calculates proportional position sizes based on your capital, and executes matching orders in real-time.
+- `./<out>/<address>/by_slug/<slugId>/market.jsonl` — realtime market events (ms timestamps)
+- `./<out>/<address>/by_slug/<slugId>/meta.json` — Gamma mapping (conditionId + token IDs + outcomes)
 
-### How It Works
-<img width="995" height="691" alt="screenshot" src="https://github.com/user-attachments/assets/79715c7a-de2c-4033-81e6-b2288963ec9b" />
+Each JSONL line is a “unified event record” with:
+- `source`: `market_ws` / `user_ws` / `rest_poll`
+- `receivedAtMs`: local receive time (ms)
+- `eventAtMs`: server event time (ms when available)
+- `slugId`, `conditionId`, `assetId`
+- `data`: raw payload
 
-1. **Select Traders** - Choose top performers from [Polymarket leaderboard](https://polymarket.com/leaderboard) or [Predictfolio](https://predictfolio.com)
-2. **Monitor Activity** - Bot continuously watches for new positions opened by selected traders using Polymarket Data API
-3. **Calculate Size** - Automatically scales trades based on your balance vs. trader's balance
-4. **Execute Orders** - Places matching orders on Polymarket using your wallet
-5. **Track Performance** - Maintains complete trade history in MongoDB
+## Run
 
-## Quick Start
-
-### Prerequisites
-
-- Node.js v18+
-- MongoDB database ([MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register) free tier works)
-- Polygon wallet with USDC and POL/MATIC for gas
-- RPC endpoint ([Infura](https://infura.io) or [Alchemy](https://www.alchemy.com) free tier)
-
-### Installation
+### Market realtime websocket (recommended)
 
 ```bash
-# Clone repository
-git clone https://github.com/vladmeer/polymarket-copy-trading-bot.git
-cd polymarket-copy-trading-bot
-
-# Install dependencies
-npm install
-
-# Run interactive setup wizard
-npm run setup
-
-# Build and start
-npm run build
-npm run health-check  # Verify configuration
-npm start             # Start trading
+npm run store-user-trades -- --mode ws --ws-mode market --user 0x... --slug-prefix btc-updown-15m --out ./dataset --raw
 ```
 
-**📖 For detailed setup instructions, see [Getting Started Guide](./docs/GETTING_STARTED.md)**
+### Hybrid: market websocket + user trades polling → one unified per-slug timeline (recommended for correlation)
 
-## Features
+```bash
+npm run store-user-trades -- --mode ws --ws-mode market --with-rest --unified --user 0x... --slug-prefix btc-updown-15m --out ./dataset --interval 0.05 --limit 100 --raw
+```
 
-- **Multi-Trader Support** - Track and copy trades from multiple traders simultaneously
-- **Smart Position Sizing** - Automatically adjusts trade sizes based on your capital
-- **Tiered Multipliers** - Apply different multipliers based on trade size
-- **Position Tracking** - Accurately tracks purchases and sells even after balance changes
-- **Trade Aggregation** - Combines multiple small trades into larger executable orders
-- **Real-time Execution** - Monitors trades every second and executes instantly
-- **MongoDB Integration** - Persistent storage of all trades and positions
-- **Price Protection** - Built-in slippage checks to avoid unfavorable fills
+This writes **both** sources to:
+- `./dataset/<address>/by_slug/<slugId>/events.jsonl`
 
-### Monitoring Method
+### Alternative: on-chain monitoring (Polygon) instead of REST polling
 
-The bot currently uses the **Polymarket Data API** to monitor trader activity and detect new positions. The monitoring system polls trader positions at configurable intervals (default: 1 second) to ensure timely trade detection and execution.
+Set in `.env`:
+- `POLYGON_WS_URL` (a Polygon websocket RPC, e.g. Alchemy/Infura `wss://...`)
 
-## Configuration
+Run:
 
-### Essential Variables
+```bash
+npm run store-user-trades -- --mode ws --ws-mode market --with-onchain --onchain-mode pending --unified --user 0x... --slug-prefix btc-updown-15m --out ./dataset
+```
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `USER_ADDRESSES` | Traders to copy (comma-separated) | `'0xABC..., 0xDEF...'` |
-| `PROXY_WALLET` | Your Polygon wallet address | `'0x123...'` |
-| `PRIVATE_KEY` | Wallet private key (no 0x prefix) | `'abc123...'` |
-| `MONGO_URI` | MongoDB connection string | `'mongodb+srv://...'` |
-| `RPC_URL` | Polygon RPC endpoint | `'https://polygon...'` |
-| `TRADE_MULTIPLIER` | Position size multiplier (default: 1.0) | `2.0` |
-| `FETCH_INTERVAL` | Check interval in seconds (default: 1) | `1` |
+This writes `type:"onchain_tx"` events (mempool / block) into the same `events.jsonl` timeline when it can detect the market token IDs inside the transaction calldata.
 
-### Finding Traders
+### User websocket (requires valid CLOB ws credentials)
 
-1. Visit [Polymarket Leaderboard](https://polymarket.com/leaderboard)
-2. Look for traders with positive P&L, win rate >55%, and active trading history
-3. Verify detailed stats on [Predictfolio](https://predictfolio.com)
-4. Add wallet addresses to `USER_ADDRESSES`
+Set in `.env`:
+- `CLOB_API_KEY`
+- `CLOB_API_SECRET`
+- `CLOB_API_PASSPHRASE`
 
-**📖 For complete configuration guide, see [Quick Start](./docs/QUICK_START.md)**
+Then:
 
-## Documentation
+```bash
+npm run store-user-trades -- --mode ws --ws-mode user --user 0x... --slug-prefix btc-updown-15m --out ./user_trade_logs_dual_ws --raw
+```
 
-### Getting Started
-- **[🚀 Getting Started Guide](./docs/GETTING_STARTED.md)** - Complete beginner's guide
-- **[⚡ Quick Start](./docs/QUICK_START.md)** - Fast setup for experienced users
+## Files
 
-## License
-
-ISC License - See [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Built on [Polymarket CLOB Client](https://github.com/Polymarket/clob-client)
-- Uses [Predictfolio](https://predictfolio.com) for trader analytics
-- Powered by Polygon network
-
----
-
-## Advanced version
-
-**🚀 Version 2 Available:** An advanced version with **RTDS (Real-Time Data Stream)** monitoring is now available as a private repository. <br />
-Version 2 features the fastest trade detection method with near-instantaneous trade replication, lower latency, and reduced API load. Copy trading works excellently in the advanced version.
-This version has more advanced features than version 1 and is a truly profitable tool.
-
-<img width="680" height="313" alt="image (19)" src="https://github.com/user-attachments/assets/d868f9f2-a1dd-4bfe-a76e-d8cbdfbd8497" />
-
-## Trading tool
-
-I've also developed a trading bot for Polymarket built with **Rust**.
-
-<img width="1917" height="942" alt="image (21)" src="https://github.com/user-attachments/assets/08a5c962-7f8b-4097-98b6-7a457daa37c9" />
-https://www.youtube.com/watch?v=4f6jHT4-DQs
-
-## Recommend VPS
-
-Vps: [@TradingVps](https://app.tradingvps.io/aff.php?aff=57)
-<img width="890" height="595" alt="image (4)" src="https://github.com/user-attachments/assets/fb311b59-05a6-477a-a8f0-5e8291acf1eb" />
-
-**Disclaimer:** This software is for educational purposes only. Trading involves risk of loss. The developers are not responsible for any financial losses incurred while using this bot.
-
-**Support:** For questions or issues, contact via Telegram: [@Vladmeer](https://t.me/vladmeer67) | Twitter: [@Vladmeer](https://x.com/vladmeer67)
+- Main script: `src/scripts/storeUserTradesRealtime.ts`
