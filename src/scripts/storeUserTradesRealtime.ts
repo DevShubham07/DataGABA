@@ -167,9 +167,16 @@ const isNetworkError = (error: unknown): boolean => {
     );
 };
 
+const isRateLimitError = (error: unknown): boolean => {
+    if (!axios.isAxiosError(error)) return false;
+    const e = error as AxiosError;
+    return e.response?.status === 429;
+};
+
 const fetchTrades = async (user: string, limit: number): Promise<ActivityTrade[]> => {
     const url = `https://data-api.polymarket.com/activity?user=${user}&type=TRADE&limit=${limit}`;
-    const maxRetries = 3;
+    const maxRetries = 5; // Increased for rate limit handling
+    const MAX_BACKOFF_MS = 60000; // Max 60 second backoff for rate limits
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
@@ -184,6 +191,17 @@ const fetchTrades = async (user: string, limit: number): Promise<ActivityTrade[]
             return Array.isArray(response.data) ? (response.data as ActivityTrade[]) : [];
         } catch (err) {
             const last = attempt === maxRetries;
+            
+            // Handle rate limiting (429) with longer exponential backoff
+            if (isRateLimitError(err)) {
+                const baseDelay = 5000; // Start with 5 second delay for rate limits
+                const delay = Math.min(MAX_BACKOFF_MS, baseDelay * Math.pow(2, attempt - 1));
+                console.warn(`⚠️  Rate limited (429), backing off for ${Math.round(delay / 1000)}s (attempt ${attempt}/${maxRetries})...`);
+                await sleep(delay);
+                continue;
+            }
+            
+            // Handle network errors
             if (!last && isNetworkError(err)) {
                 const delay = 1000 * Math.pow(2, attempt - 1);
                 console.warn(`⚠️  Network error, retrying in ${Math.round(delay / 1000)}s...`);
@@ -452,6 +470,48 @@ const fetchSlugForConditionId = async (
         // ignore
     }
     return undefined;
+};
+
+// ---- Health monitoring stats ----
+const healthStats = {
+    startTime: Date.now(),
+    marketWsEvents: 0,
+    userWsEvents: 0,
+    restPollEvents: 0,
+    onchainEvents: 0,
+    wsReconnects: 0,
+    lastEventTime: 0,
+};
+
+const HEALTH_LOG_INTERVAL_MS = 60000; // Log health every 60 seconds
+
+const formatUptime = (ms: number): string => {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    if (hours > 0) {
+        return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+    }
+    if (minutes > 0) {
+        return `${minutes}m ${seconds % 60}s`;
+    }
+    return `${seconds}s`;
+};
+
+const formatMemory = (bytes: number): string => {
+    const mb = bytes / (1024 * 1024);
+    return `${mb.toFixed(1)}MB`;
+};
+
+const logHealthStatus = () => {
+    const uptime = Date.now() - healthStats.startTime;
+    const memUsage = process.memoryUsage();
+    const totalEvents = healthStats.marketWsEvents + healthStats.userWsEvents + healthStats.restPollEvents + healthStats.onchainEvents;
+    const timeSinceLastEvent = healthStats.lastEventTime > 0 ? Date.now() - healthStats.lastEventTime : 0;
+    
+    console.log(
+        `[HEALTH] uptime=${formatUptime(uptime)} | events: market_ws=${healthStats.marketWsEvents}, rest=${healthStats.restPollEvents}, user_ws=${healthStats.userWsEvents}, onchain=${healthStats.onchainEvents}, total=${totalEvents} | ws_reconnects=${healthStats.wsReconnects} | memory: heap=${formatMemory(memUsage.heapUsed)}/${formatMemory(memUsage.heapTotal)}, rss=${formatMemory(memUsage.rss)} | last_event=${timeSinceLastEvent > 0 ? formatUptime(timeSinceLastEvent) + ' ago' : 'none'}`
+    );
 };
 
 // ---- low-latency JSONL writer (append-only) ----
@@ -846,6 +906,8 @@ const startOnchainMonitor = async (opts: {
         };
 
         opts.writer.write(outPath, e);
+        healthStats.onchainEvents++;
+        healthStats.lastEventTime = Date.now();
         if (opts.raw === false && opts.compact === false) {
             // nothing
         }
@@ -917,6 +979,8 @@ const startOnchainMonitor = async (opts: {
                 };
                 
                 opts.writer.write(outPath, e);
+                healthStats.onchainEvents++;
+                healthStats.lastEventTime = Date.now();
             } catch (e: any) {
                 console.warn(`⚠️  OrderFilled event processing error:`, e.message);
             }
@@ -1095,6 +1159,11 @@ const connectUserWs = async (opts: {
     const state = loadState(opts.outDir, opts.user);
     const conditionIdToSlug = new Map<string, string>();
 
+    // Reconnection state
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_DELAY_MS = 30000;
+    const BASE_RECONNECT_DELAY_MS = 1000;
+
     const fetchConditionIdsForSlugPrefix = async (slugPrefix: string): Promise<string[]> => {
         try {
             // Special case: recurring time-bucket markets like `btc-updown-15m-<bucketStartUnix>`.
@@ -1125,202 +1194,238 @@ const connectUserWs = async (opts: {
         }
     };
 
-    // Prefer the `ws` package so we can set headers (some endpoints may require Origin).
-    let ws: any;
-    try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const WsLib = require('ws');
-        ws = new WsLib(wsUrl, {
-            headers: {
-                Origin: 'https://polymarket.com',
-                'User-Agent': 'Mozilla/5.0',
-            },
-        });
-    } catch {
-        const WSImpl: any = (globalThis as any).WebSocket;
-        if (!WSImpl) {
-            throw new Error(
-                'WebSocket is not available in this Node runtime and `ws` package could not be loaded.'
-            );
-        }
-        ws = new WSImpl(wsUrl);
-    }
+    const connect = () => {
+        if (!shouldRun) return;
 
-    const on = (event: string, handler: (...args: any[]) => void) => {
-        if (typeof ws.addEventListener === 'function') ws.addEventListener(event, handler);
-        else ws.on(event, handler);
+        // Prefer the `ws` package so we can set headers (some endpoints may require Origin).
+        let ws: any;
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const WsLib = require('ws');
+            ws = new WsLib(wsUrl, {
+                headers: {
+                    Origin: 'https://polymarket.com',
+                    'User-Agent': 'Mozilla/5.0',
+                },
+            });
+        } catch {
+            const WSImpl: any = (globalThis as any).WebSocket;
+            if (!WSImpl) {
+                throw new Error(
+                    'WebSocket is not available in this Node runtime and `ws` package could not be loaded.'
+                );
+            }
+            ws = new WSImpl(wsUrl);
+        }
+
+        let pingTimer: NodeJS.Timeout | null = null;
+
+        const on = (event: string, handler: (...args: any[]) => void) => {
+            if (typeof ws.addEventListener === 'function') ws.addEventListener(event, handler);
+            else ws.on(event, handler);
+        };
+
+        on('open', async () => {
+            // Reset reconnect attempts on successful connection
+            reconnectAttempts = 0;
+
+            const envMarketsRaw = process.env.WS_USER_MARKETS || process.env.CLOB_WSS_USER_MARKETS;
+            const envMarkets =
+                typeof envMarketsRaw === 'string'
+                    ? envMarketsRaw
+                          .split(',')
+                          .map((s) => s.trim())
+                          .filter(Boolean)
+                    : [];
+            const markets =
+                envMarkets.length > 0
+                    ? envMarkets
+                    : opts.slugPrefix
+                      ? await fetchConditionIdsForSlugPrefix(opts.slugPrefix)
+                      : [];
+
+            // Docs: upon opening, send auth + intent info.
+            // type: "user", markets: string[] condition IDs (optional), auth: {apiKey, secret, passphrase}
+            const subscribePayload = {
+                type: 'user',
+                markets, // many servers require this to be non-empty; we filter further client-side
+                // Docs / quickstarts differ on `apiKey` vs `apikey`. Send both.
+                auth: {
+                    apiKey: auth.apiKey,
+                    apikey: auth.apiKey,
+                    secret: auth.secret,
+                    passphrase: auth.passphrase,
+                },
+            };
+            ws.send(JSON.stringify(subscribePayload));
+
+            // Keepalive per quickstart docs
+            pingTimer = setInterval(() => {
+                try {
+                    ws.send('PING');
+                } catch {
+                    // ignore
+                }
+            }, 10_000);
+
+            console.log(`🔌 User WS connected: ${wsUrl}`);
+            console.log('✅ Subscribed to user channel (streaming realtime; no polling)\n');
+        });
+
+        on('message', async (evt: any) => {
+            const seenAtMs = Date.now();
+            const seenAt = new Date(seenAtMs).toISOString();
+            let msg: any;
+            try {
+                const data = typeof evt?.data === 'string' ? evt.data : evt?.data?.toString?.() ?? evt;
+                msg = JSON.parse(typeof data === 'string' ? data : String(data));
+            } catch {
+                // non-json message; ignore
+                return;
+            }
+
+            // Some auth errors arrive as JSON before the socket closes; surface them.
+            if (
+                typeof msg?.error === 'string' ||
+                typeof msg?.message === 'string' ||
+                msg?.event_type === 'error' ||
+                msg?.type === 'error'
+            ) {
+                const summary = {
+                    error: msg?.error,
+                    message: msg?.message,
+                    code: msg?.code,
+                    type: msg?.type || msg?.event_type,
+                };
+                console.error('⚠️  User WS message indicates error:', summary);
+            }
+
+            const conditionId = extractConditionId(msg);
+            const eventType = extractEventType(msg);
+            const eventTimeMs = parseEventTimeMs(msg);
+            const eventTime = typeof eventTimeMs === 'number' ? new Date(eventTimeMs).toISOString() : undefined;
+
+            let slugId: string | undefined =
+                (typeof msg?.slug === 'string' ? msg.slug : undefined) ||
+                (typeof msg?.market_slug === 'string' ? msg.market_slug : undefined) ||
+                (typeof msg?.marketSlug === 'string' ? msg.marketSlug : undefined);
+
+            if (!slugId && conditionId) {
+                slugId = await fetchSlugForConditionId(conditionId, conditionIdToSlug);
+            }
+
+            if (opts.slugPrefix && slugId && !slugId.startsWith(opts.slugPrefix)) {
+                return;
+            }
+
+            if (conditionId && slugId) {
+                opts.onMarketDiscovered?.({ conditionId, slugId });
+            }
+
+            // Build a stable dedup key
+            const idLike =
+                msg?.id ||
+                msg?.trade_id ||
+                msg?.tradeId ||
+                msg?.order_id ||
+                msg?.orderId ||
+                msg?.tx_hash ||
+                msg?.transactionHash ||
+                msg?.data?.id ||
+                msg?.data?.trade_id ||
+                msg?.data?.tradeId ||
+                msg?.data?.order_id ||
+                msg?.data?.orderId ||
+                msg?.data?.tx_hash ||
+                msg?.data?.transactionHash;
+            const dedupKey =
+                typeof idLike === 'string'
+                    ? `id:${idLike}`
+                    : `t:${eventTimeMs ?? seenAtMs}|c:${conditionId ?? 'na'}|type:${eventType ?? 'na'}|h:${JSON.stringify(
+                          msg
+                      ).slice(0, 300)}`;
+
+            const record: WsEventRecord = {
+                seenAtMs,
+                seenAt,
+                eventTimeMs,
+                eventTime,
+                conditionId,
+                slugId,
+                eventType,
+                dedupKey,
+                data: opts.raw ? msg : { ...msg, auth: undefined },
+            };
+
+            // in-memory dedupe for runtime
+            if (state.seenTxSet[dedupKey]) return;
+            state.seenTxSet[dedupKey] = true;
+            state.seenTxOrder.push(dedupKey);
+            if (state.seenTxOrder.length > MAX_SEEN_TX) {
+                const removeCount = state.seenTxOrder.length - MAX_SEEN_TX;
+                const removed = state.seenTxOrder.splice(0, removeCount);
+                for (const k of removed) delete state.seenTxSet[k];
+            }
+            saveState(opts.outDir, opts.user, state);
+
+            const slugOut = slugId || conditionId || 'unknown';
+            const unified = toUnified('user_ws', record);
+            opts.writer.write(
+                opts.unified ? eventsJsonlPathFor(opts.outDir, opts.user, slugOut) : jsonlPathFor(opts.outDir, opts.user, slugOut, 'user'),
+                unified
+            );
+            healthStats.userWsEvents++;
+            healthStats.lastEventTime = Date.now();
+            if (opts.pretty) console.log(JSON.stringify(unified, null, 2));
+        });
+
+        on('error', (e: any) => {
+            console.error('❌ User WS error:', e?.message || e);
+            // If error occurs and connection is not already closing, force close to trigger reconnection
+            if (ws && ws.readyState !== ws.CLOSING && ws.readyState !== ws.CLOSED) {
+                try {
+                    ws.close();
+                } catch {
+                    // Ignore errors during close
+                }
+            }
+        });
+
+        on('close', (evt: any, evt2: any) => {
+            // Clear ping timer
+            if (pingTimer) {
+                clearInterval(pingTimer);
+                pingTimer = null;
+            }
+
+            // ws lib: (code, reason) OR browser: (CloseEvent)
+            const code = typeof evt === 'number' ? evt : typeof evt?.code === 'number' ? evt.code : undefined;
+            const reasonRaw =
+                typeof evt2 === 'string'
+                    ? evt2
+                    : evt2?.toString?.()
+                      ? evt2.toString()
+                      : typeof evt?.reason === 'string'
+                        ? evt.reason
+                        : undefined;
+            const reason = reasonRaw ? String(reasonRaw) : undefined;
+            console.log(
+                `🔌 User WS closed${typeof code === 'number' ? ` (code=${code})` : ''}${reason ? ` reason=${reason}` : ''}`
+            );
+
+            // Schedule reconnection with exponential backoff
+            if (shouldRun) {
+                reconnectAttempts++;
+                healthStats.wsReconnects++;
+                const delay = Math.min(MAX_RECONNECT_DELAY_MS, BASE_RECONNECT_DELAY_MS * Math.pow(2, reconnectAttempts - 1));
+                console.log(`🔄 User WS reconnecting in ${Math.round(delay / 1000)}s (attempt ${reconnectAttempts})...`);
+                setTimeout(() => connect(), delay);
+            }
+        });
     };
 
-    on('open', async () => {
-        const envMarketsRaw = process.env.WS_USER_MARKETS || process.env.CLOB_WSS_USER_MARKETS;
-        const envMarkets =
-            typeof envMarketsRaw === 'string'
-                ? envMarketsRaw
-                      .split(',')
-                      .map((s) => s.trim())
-                      .filter(Boolean)
-                : [];
-        const markets =
-            envMarkets.length > 0
-                ? envMarkets
-                : opts.slugPrefix
-                  ? await fetchConditionIdsForSlugPrefix(opts.slugPrefix)
-                  : [];
-
-        // Docs: upon opening, send auth + intent info.
-        // type: "user", markets: string[] condition IDs (optional), auth: {apiKey, secret, passphrase}
-        const subscribePayload = {
-            type: 'user',
-            markets, // many servers require this to be non-empty; we filter further client-side
-            // Docs / quickstarts differ on `apiKey` vs `apikey`. Send both.
-            auth: {
-                apiKey: auth.apiKey,
-                apikey: auth.apiKey,
-                secret: auth.secret,
-                passphrase: auth.passphrase,
-            },
-        };
-        ws.send(JSON.stringify(subscribePayload));
-
-        // Keepalive per quickstart docs
-        const pingTimer = setInterval(() => {
-            try {
-                ws.send('PING');
-            } catch {
-                // ignore
-            }
-        }, 10_000);
-
-        on('close', () => clearInterval(pingTimer));
-        console.log(`🔌 User WS connected: ${wsUrl}`);
-        console.log('✅ Subscribed to user channel (streaming realtime; no polling)\n');
-    });
-
-    on('message', async (evt: any) => {
-        const seenAtMs = Date.now();
-        const seenAt = new Date(seenAtMs).toISOString();
-        let msg: any;
-        try {
-            const data = typeof evt?.data === 'string' ? evt.data : evt?.data?.toString?.() ?? evt;
-            msg = JSON.parse(typeof data === 'string' ? data : String(data));
-        } catch {
-            // non-json message; ignore
-            return;
-        }
-
-        // Some auth errors arrive as JSON before the socket closes; surface them.
-        if (
-            typeof msg?.error === 'string' ||
-            typeof msg?.message === 'string' ||
-            msg?.event_type === 'error' ||
-            msg?.type === 'error'
-        ) {
-            const summary = {
-                error: msg?.error,
-                message: msg?.message,
-                code: msg?.code,
-                type: msg?.type || msg?.event_type,
-            };
-            console.error('⚠️  User WS message indicates error:', summary);
-        }
-
-        const conditionId = extractConditionId(msg);
-        const eventType = extractEventType(msg);
-        const eventTimeMs = parseEventTimeMs(msg);
-        const eventTime = typeof eventTimeMs === 'number' ? new Date(eventTimeMs).toISOString() : undefined;
-
-        let slugId: string | undefined =
-            (typeof msg?.slug === 'string' ? msg.slug : undefined) ||
-            (typeof msg?.market_slug === 'string' ? msg.market_slug : undefined) ||
-            (typeof msg?.marketSlug === 'string' ? msg.marketSlug : undefined);
-
-        if (!slugId && conditionId) {
-            slugId = await fetchSlugForConditionId(conditionId, conditionIdToSlug);
-        }
-
-        if (opts.slugPrefix && slugId && !slugId.startsWith(opts.slugPrefix)) {
-            return;
-        }
-
-        if (conditionId && slugId) {
-            opts.onMarketDiscovered?.({ conditionId, slugId });
-        }
-
-        // Build a stable dedup key
-        const idLike =
-            msg?.id ||
-            msg?.trade_id ||
-            msg?.tradeId ||
-            msg?.order_id ||
-            msg?.orderId ||
-            msg?.tx_hash ||
-            msg?.transactionHash ||
-            msg?.data?.id ||
-            msg?.data?.trade_id ||
-            msg?.data?.tradeId ||
-            msg?.data?.order_id ||
-            msg?.data?.orderId ||
-            msg?.data?.tx_hash ||
-            msg?.data?.transactionHash;
-        const dedupKey =
-            typeof idLike === 'string'
-                ? `id:${idLike}`
-                : `t:${eventTimeMs ?? seenAtMs}|c:${conditionId ?? 'na'}|type:${eventType ?? 'na'}|h:${JSON.stringify(
-                      msg
-                  ).slice(0, 300)}`;
-
-        const record: WsEventRecord = {
-            seenAtMs,
-            seenAt,
-            eventTimeMs,
-            eventTime,
-            conditionId,
-            slugId,
-            eventType,
-            dedupKey,
-            data: opts.raw ? msg : { ...msg, auth: undefined },
-        };
-
-        // in-memory dedupe for runtime
-        if (state.seenTxSet[dedupKey]) return;
-        state.seenTxSet[dedupKey] = true;
-        state.seenTxOrder.push(dedupKey);
-        if (state.seenTxOrder.length > MAX_SEEN_TX) {
-            const removeCount = state.seenTxOrder.length - MAX_SEEN_TX;
-            const removed = state.seenTxOrder.splice(0, removeCount);
-            for (const k of removed) delete state.seenTxSet[k];
-        }
-        saveState(opts.outDir, opts.user, state);
-
-        const slugOut = slugId || conditionId || 'unknown';
-        const unified = toUnified('user_ws', record);
-        opts.writer.write(
-            opts.unified ? eventsJsonlPathFor(opts.outDir, opts.user, slugOut) : jsonlPathFor(opts.outDir, opts.user, slugOut, 'user'),
-            unified
-        );
-        if (opts.pretty) console.log(JSON.stringify(unified, null, 2));
-    });
-
-    on('error', (e: any) => {
-        console.error('❌ User WS error:', e?.message || e);
-    });
-
-    on('close', (evt: any, evt2: any) => {
-        // ws lib: (code, reason) OR browser: (CloseEvent)
-        const code = typeof evt === 'number' ? evt : typeof evt?.code === 'number' ? evt.code : undefined;
-        const reasonRaw =
-            typeof evt2 === 'string'
-                ? evt2
-                : evt2?.toString?.()
-                  ? evt2.toString()
-                  : typeof evt?.reason === 'string'
-                    ? evt.reason
-                    : undefined;
-        const reason = reasonRaw ? String(reasonRaw) : undefined;
-        console.log(
-            `🔌 User WS closed${typeof code === 'number' ? ` (code=${code})` : ''}${reason ? ` reason=${reason}` : ''}`
-        );
-    });
+    // Start initial connection
+    connect();
 };
 
 const fetchMarketMetaForConditionId = async (conditionId: string): Promise<{
@@ -1366,13 +1471,16 @@ const connectMarketWs = async (opts: {
     const wsSeen = new Set<string>();
     const wsSeenOrder: string[] = [];
 
-    const WSImpl: any = (globalThis as any).WebSocket;
-    if (!WSImpl) throw new Error('WebSocket is not available in this Node runtime.');
+    // Reconnection state
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_DELAY_MS = 30000;
+    const BASE_RECONNECT_DELAY_MS = 1000;
 
-    const ws = new WSImpl(wsUrl);
+    // Shared state that persists across reconnections
     const subscribed = new Set<string>();
     const marketToSlug = new Map<string, string>(); // conditionId -> slugId
     const slugToTokenOutcome = new Map<string, Record<string, string>>();
+    let currentWs: any = null;
 
     const loadTokenOutcomeMap = (slugId: string): Record<string, string> | undefined => {
         const cached = slugToTokenOutcome.get(slugId);
@@ -1406,193 +1514,266 @@ const connectMarketWs = async (opts: {
         const toAdd = assetIds.filter((id) => id && !subscribed.has(id));
         if (toAdd.length === 0) return;
         for (const id of toAdd) subscribed.add(id);
+        if (!currentWs) return;
         try {
             // docs: subscribe more assets via operation=subscribe
-            ws.send(JSON.stringify({ assets_ids: toAdd, operation: 'subscribe' }));
+            currentWs.send(JSON.stringify({ assets_ids: toAdd, operation: 'subscribe' }));
         } catch {
             // ignore
         }
     };
 
-    ws.addEventListener('open', () => {
-        ws.send(JSON.stringify({ assets_ids: [], type: 'market' }));
-        const pingTimer = setInterval(() => {
-            try {
-                ws.send('PING');
-            } catch {
-                // ignore
-            }
-        }, 10_000);
-        ws.addEventListener('close', () => clearInterval(pingTimer));
-        console.log(`🔌 Market WS connected: ${wsUrl}`);
+    const connect = () => {
+        if (!shouldRun) return;
 
-        // Seed subscriptions from Gamma if a slug prefix is provided.
-        (async () => {
-            if (!opts.slugPrefix) return;
-            try {
-                const is15mSeries = /-15m$/.test(opts.slugPrefix);
-                const candidateSlugs: string[] = [];
-                if (is15mSeries) {
-                    const nowSec = Math.floor(Date.now() / 1000);
-                    const bucket = Math.floor(nowSec / 900) * 900;
-                    for (const t of [bucket - 900, bucket, bucket + 900]) {
-                        candidateSlugs.push(`${opts.slugPrefix}-${t}`);
+        let WsLib: any;
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            WsLib = require('ws');
+        } catch {
+            WsLib = (globalThis as any).WebSocket;
+        }
+        if (!WsLib) throw new Error('WebSocket is not available in this Node runtime.');
+
+        const ws = new WsLib(wsUrl);
+        currentWs = ws;
+        let pingTimer: NodeJS.Timeout | null = null;
+        let lastPongTime = Date.now();
+        const PONG_TIMEOUT_MS = 30000; // If no pong in 30s, consider connection dead
+
+        ws.addEventListener('open', () => {
+            // Reset reconnect attempts on successful connection
+            reconnectAttempts = 0;
+
+            ws.send(JSON.stringify({ assets_ids: [], type: 'market' }));
+            lastPongTime = Date.now();
+            pingTimer = setInterval(() => {
+                try {
+                    // Check if we've received a pong recently
+                    const timeSinceLastPong = Date.now() - lastPongTime;
+                    if (timeSinceLastPong > PONG_TIMEOUT_MS) {
+                        console.warn(`⚠️ Market WS: No pong received in ${Math.round(timeSinceLastPong / 1000)}s, forcing reconnect...`);
+                        ws.close();
+                        return;
                     }
-                } else {
-                    // Fallback: try exact slug
-                    candidateSlugs.push(opts.slugPrefix);
+                    ws.send('PING');
+                } catch {
+                    // ignore
                 }
-                console.log(`🧭 Market seed slugs: ${candidateSlugs.join(', ')}`);
+            }, 10_000);
+            console.log(`🔌 Market WS connected: ${wsUrl}`);
 
-                for (const slug of candidateSlugs) {
-                    const url = `https://gamma-api.polymarket.com/markets?limit=1&slug=${encodeURIComponent(
-                        slug
-                    )}`;
-                    const j = await fetchJson<any>(url, 15000);
-                    const m = Array.isArray(j) ? j[0] : null;
-                    const clobTokenIds = normalizeStringArray(m?.clobTokenIds);
-                    if (!m?.conditionId || clobTokenIds.length === 0) {
-                        const debug = {
-                            hasMarket: !!m,
-                            conditionIdType: typeof m?.conditionId,
-                            hasClobTokenIds: m ? 'clobTokenIds' in m : false,
-                            clobTokenIdsType: typeof m?.clobTokenIds,
-                            clobTokenIdsIsArray: Array.isArray(m?.clobTokenIds),
-                        };
-                        console.warn(`⚠️  Seed slug not found or missing token ids: ${slug}`, debug);
-                        continue;
+            // Re-subscribe to previously subscribed assets after reconnection
+            if (subscribed.size > 0) {
+                const assetIds = Array.from(subscribed);
+                try {
+                    ws.send(JSON.stringify({ assets_ids: assetIds, operation: 'subscribe' }));
+                    console.log(`🔄 Re-subscribed to ${assetIds.length} assets after reconnection`);
+                } catch {
+                    // ignore
+                }
+            }
+
+            // Seed subscriptions from Gamma if a slug prefix is provided.
+            (async () => {
+                if (!opts.slugPrefix) return;
+                try {
+                    const is15mSeries = /-15m$/.test(opts.slugPrefix);
+                    const candidateSlugs: string[] = [];
+                    if (is15mSeries) {
+                        const nowSec = Math.floor(Date.now() / 1000);
+                        const bucket = Math.floor(nowSec / 900) * 900;
+                        for (const t of [bucket - 900, bucket, bucket + 900]) {
+                            candidateSlugs.push(`${opts.slugPrefix}-${t}`);
+                        }
+                    } else {
+                        // Fallback: try exact slug
+                        candidateSlugs.push(opts.slugPrefix);
                     }
-                    const meta = {
-                        conditionId: m.conditionId,
-                        slugId: m.slug,
-                        clobTokenIds,
-                        outcomes: normalizeStringArray(m.outcomes),
-                    };
+                    console.log(`🧭 Market seed slugs: ${candidateSlugs.join(', ')}`);
+
+                    for (const slug of candidateSlugs) {
+                        const url = `https://gamma-api.polymarket.com/markets?limit=1&slug=${encodeURIComponent(
+                            slug
+                        )}`;
+                        const j = await fetchJson<any>(url, 15000);
+                        const m = Array.isArray(j) ? j[0] : null;
+                        const clobTokenIds = normalizeStringArray(m?.clobTokenIds);
+                        if (!m?.conditionId || clobTokenIds.length === 0) {
+                            const debug = {
+                                hasMarket: !!m,
+                                conditionIdType: typeof m?.conditionId,
+                                hasClobTokenIds: m ? 'clobTokenIds' in m : false,
+                                clobTokenIdsType: typeof m?.clobTokenIds,
+                                clobTokenIdsIsArray: Array.isArray(m?.clobTokenIds),
+                            };
+                            console.warn(`⚠️  Seed slug not found or missing token ids: ${slug}`, debug);
+                            continue;
+                        }
+                        const meta = {
+                            conditionId: m.conditionId,
+                            slugId: m.slug,
+                            clobTokenIds,
+                            outcomes: normalizeStringArray(m.outcomes),
+                        };
+                        const metaPath = path.join(
+                            opts.outDir,
+                            sanitizeFileComponent(opts.user),
+                            'by_slug',
+                            sanitizeFileComponent(m.slug),
+                            'meta.json'
+                        );
+                        ensureDirForFile(metaPath);
+                        fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2) + '\n', 'utf8');
+                        doSubscribe(clobTokenIds);
+                        console.log(`✅ Seeded market ${m.slug} (${m.conditionId})`);
+                    }
+                } catch (e) {
+                    console.error('❌ Market seeding failed:', e);
+                }
+            })();
+        });
+
+        ws.addEventListener('message', async (evt: any) => {
+            // Update last pong time on any message (PONG responses or data messages indicate connection is alive)
+            lastPongTime = Date.now();
+            
+            const seenAtMs = Date.now();
+            const seenAt = new Date(seenAtMs).toISOString();
+            let msg: any;
+            try {
+                msg = JSON.parse(typeof evt.data === 'string' ? evt.data : String(evt.data));
+            } catch {
+                return;
+            }
+
+            const conditionId = extractConditionId(msg);
+            const eventType = extractEventType(msg);
+            const eventTimeMs = parseEventTimeMs(msg);
+            const eventTime = typeof eventTimeMs === 'number' ? new Date(eventTimeMs).toISOString() : undefined;
+
+            let slugId: string | undefined =
+                (typeof msg?.slug === 'string' ? msg.slug : undefined) ||
+                (typeof msg?.market_slug === 'string' ? msg.market_slug : undefined);
+
+            if (!slugId && conditionId) slugId = marketToSlug.get(conditionId);
+
+            // If still unknown, resolve via gamma (cheap + cached).
+            if (!slugId && conditionId) {
+                const meta = await fetchMarketMetaForConditionId(conditionId);
+                if (meta) {
+                    marketToSlug.set(meta.conditionId, meta.slugId);
+                    slugId = meta.slugId;
+                    // subscribe to both outcome token IDs to get book updates
+                    doSubscribe(meta.clobTokenIds);
+                    // write meta.json for analysis
                     const metaPath = path.join(
                         opts.outDir,
                         sanitizeFileComponent(opts.user),
                         'by_slug',
-                        sanitizeFileComponent(m.slug),
+                        sanitizeFileComponent(meta.slugId),
                         'meta.json'
                     );
                     ensureDirForFile(metaPath);
                     fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2) + '\n', 'utf8');
-                    doSubscribe(clobTokenIds);
-                    console.log(`✅ Seeded market ${m.slug} (${m.conditionId})`);
                 }
-            } catch (e) {
-                console.error('❌ Market seeding failed:', e);
             }
-        })();
-    });
 
-    ws.addEventListener('message', async (evt: any) => {
-        const seenAtMs = Date.now();
-        const seenAt = new Date(seenAtMs).toISOString();
-        let msg: any;
-        try {
-            msg = JSON.parse(typeof evt.data === 'string' ? evt.data : String(evt.data));
-        } catch {
-            return;
-        }
+            const assetId =
+                (typeof msg?.asset_id === 'string' ? msg.asset_id : undefined) ||
+                (typeof msg?.assetId === 'string' ? msg.assetId : undefined);
 
-        const conditionId = extractConditionId(msg);
-        const eventType = extractEventType(msg);
-        const eventTimeMs = parseEventTimeMs(msg);
-        const eventTime = typeof eventTimeMs === 'number' ? new Date(eventTimeMs).toISOString() : undefined;
+            const dedupKey =
+                typeof msg?.hash === 'string'
+                    ? `hash:${msg.hash}|t:${eventTimeMs ?? seenAtMs}|a:${assetId ?? 'na'}|e:${eventType ?? 'na'}`
+                    : `t:${eventTimeMs ?? seenAtMs}|a:${assetId ?? 'na'}|e:${eventType ?? 'na'}|h:${JSON.stringify(msg).slice(
+                          0,
+                          200
+                      )}`;
 
-        let slugId: string | undefined =
-            (typeof msg?.slug === 'string' ? msg.slug : undefined) ||
-            (typeof msg?.market_slug === 'string' ? msg.market_slug : undefined);
+            const record: WsEventRecord = {
+                seenAtMs,
+                seenAt,
+                eventTimeMs,
+                eventTime,
+                conditionId,
+                slugId,
+                eventType,
+                dedupKey,
+                data: opts.raw ? msg : msg,
+            };
 
-        if (!slugId && conditionId) slugId = marketToSlug.get(conditionId);
-
-        // If still unknown, resolve via gamma (cheap + cached).
-        if (!slugId && conditionId) {
-            const meta = await fetchMarketMetaForConditionId(conditionId);
-            if (meta) {
-                marketToSlug.set(meta.conditionId, meta.slugId);
-                slugId = meta.slugId;
-                // subscribe to both outcome token IDs to get book updates
-                doSubscribe(meta.clobTokenIds);
-                // write meta.json for analysis
-                const metaPath = path.join(
-                    opts.outDir,
-                    sanitizeFileComponent(opts.user),
-                    'by_slug',
-                    sanitizeFileComponent(meta.slugId),
-                    'meta.json'
-                );
-                ensureDirForFile(metaPath);
-                fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2) + '\n', 'utf8');
+            if (state) {
+                if (state.seenTxSet[dedupKey]) return;
+                state.seenTxSet[dedupKey] = true;
+                state.seenTxOrder.push(dedupKey);
+                if (state.seenTxOrder.length > MAX_SEEN_TX) {
+                    const removeCount = state.seenTxOrder.length - MAX_SEEN_TX;
+                    const removed = state.seenTxOrder.splice(0, removeCount);
+                    for (const k of removed) delete state.seenTxSet[k];
+                }
+                saveState(opts.outDir, opts.user, state);
+            } else {
+                if (wsSeen.has(dedupKey)) return;
+                wsSeen.add(dedupKey);
+                wsSeenOrder.push(dedupKey);
+                if (wsSeenOrder.length > MAX_SEEN_TX) {
+                    const removeCount = wsSeenOrder.length - MAX_SEEN_TX;
+                    const removed = wsSeenOrder.splice(0, removeCount);
+                    for (const k of removed) wsSeen.delete(k);
+                }
             }
-        }
 
-        const assetId =
-            (typeof msg?.asset_id === 'string' ? msg.asset_id : undefined) ||
-            (typeof msg?.assetId === 'string' ? msg.assetId : undefined);
-
-        const dedupKey =
-            typeof msg?.hash === 'string'
-                ? `hash:${msg.hash}|t:${eventTimeMs ?? seenAtMs}|a:${assetId ?? 'na'}|e:${eventType ?? 'na'}`
-                : `t:${eventTimeMs ?? seenAtMs}|a:${assetId ?? 'na'}|e:${eventType ?? 'na'}|h:${JSON.stringify(msg).slice(
-                      0,
-                      200
-                  )}`;
-
-        const record: WsEventRecord = {
-            seenAtMs,
-            seenAt,
-            eventTimeMs,
-            eventTime,
-            conditionId,
-            slugId,
-            eventType,
-            dedupKey,
-            data: opts.raw ? msg : msg,
-        };
-
-        if (state) {
-            if (state.seenTxSet[dedupKey]) return;
-            state.seenTxSet[dedupKey] = true;
-            state.seenTxOrder.push(dedupKey);
-            if (state.seenTxOrder.length > MAX_SEEN_TX) {
-                const removeCount = state.seenTxOrder.length - MAX_SEEN_TX;
-                const removed = state.seenTxOrder.splice(0, removeCount);
-                for (const k of removed) delete state.seenTxSet[k];
+            const slugOut = slugId || conditionId || 'unknown';
+            const unified = toUnified('market_ws', record);
+            const tokenToOutcome = slugId ? loadTokenOutcomeMap(slugId) : undefined;
+            const mlEvents = toMlEvents(unified, { compact: opts.compact !== false, raw: opts.raw, tokenToOutcome });
+            const outPath = opts.unified
+                ? eventsJsonlPathFor(opts.outDir, opts.user, slugOut)
+                : jsonlPathFor(opts.outDir, opts.user, slugOut, 'market');
+            for (const e of mlEvents) opts.writer.write(outPath, e);
+            healthStats.marketWsEvents += mlEvents.length;
+            healthStats.lastEventTime = Date.now();
+            if (opts.pretty) {
+                for (const e of mlEvents) console.log(JSON.stringify(e, null, 2));
             }
-            saveState(opts.outDir, opts.user, state);
-        } else {
-            if (wsSeen.has(dedupKey)) return;
-            wsSeen.add(dedupKey);
-            wsSeenOrder.push(dedupKey);
-            if (wsSeenOrder.length > MAX_SEEN_TX) {
-                const removeCount = wsSeenOrder.length - MAX_SEEN_TX;
-                const removed = wsSeenOrder.splice(0, removeCount);
-                for (const k of removed) wsSeen.delete(k);
+        });
+
+        ws.addEventListener('error', (e: any) => {
+            console.error('❌ Market WS error:', e?.message || e);
+            // If error occurs and connection is not already closing, force close to trigger reconnection
+            if (ws && ws.readyState !== ws.CLOSING && ws.readyState !== ws.CLOSED) {
+                try {
+                    ws.close();
+                } catch {
+                    // Ignore errors during close
+                }
             }
-        }
+        });
 
-        const slugOut = slugId || conditionId || 'unknown';
-        const unified = toUnified('market_ws', record);
-        const tokenToOutcome = slugId ? loadTokenOutcomeMap(slugId) : undefined;
-        const mlEvents = toMlEvents(unified, { compact: opts.compact !== false, raw: opts.raw, tokenToOutcome });
-        const outPath = opts.unified
-            ? eventsJsonlPathFor(opts.outDir, opts.user, slugOut)
-            : jsonlPathFor(opts.outDir, opts.user, slugOut, 'market');
-        for (const e of mlEvents) opts.writer.write(outPath, e);
-        if (opts.pretty) {
-            for (const e of mlEvents) console.log(JSON.stringify(e, null, 2));
-        }
-    });
+        ws.addEventListener('close', () => {
+            // Clear ping timer
+            if (pingTimer) {
+                clearInterval(pingTimer);
+                pingTimer = null;
+            }
+            currentWs = null;
 
-    ws.addEventListener('error', (e: any) => {
-        console.error('❌ Market WS error:', e?.message || e);
-    });
+            console.log('🔌 Market WS closed');
 
-    ws.addEventListener('close', () => {
-        console.log('🔌 Market WS closed');
-    });
+            // Schedule reconnection with exponential backoff
+            if (shouldRun) {
+                reconnectAttempts++;
+                healthStats.wsReconnects++;
+                const delay = Math.min(MAX_RECONNECT_DELAY_MS, BASE_RECONNECT_DELAY_MS * Math.pow(2, reconnectAttempts - 1));
+                console.log(`🔄 Market WS reconnecting in ${Math.round(delay / 1000)}s (attempt ${reconnectAttempts})...`);
+                setTimeout(() => connect(), delay);
+            }
+        });
+    };
+
+    // Start initial connection
+    connect();
 
     return { subscribeToAssetIds: doSubscribe };
 };
@@ -1769,6 +1950,8 @@ const appendRestTradesUnified = (opts: {
             (e as any).endpoint = '/activity';
             opts.writer.write(eventsJsonlPathFor(opts.outDir, opts.user, slugId), e);
         }
+        healthStats.restPollEvents += mlEvents.length;
+        healthStats.lastEventTime = Date.now();
 
         // update state
         opts.state.seenTxSet[key] = true;
@@ -1896,6 +2079,14 @@ const main = async () => {
         );
         const writer = new JsonlWriter();
         let marketSubscribeFn: ((assetIds: string[]) => void) | null = null;
+
+        // Start periodic health logging
+        const healthTimer = setInterval(() => {
+            if (shouldRun) logHealthStatus();
+        }, HEALTH_LOG_INTERVAL_MS);
+        
+        // Clean up health timer on shutdown
+        process.on('beforeExit', () => clearInterval(healthTimer));
 
         if (wsMode === 'market' || wsMode === 'dual') {
             const { subscribeToAssetIds } = await connectMarketWs({

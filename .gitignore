@@ -50,8 +50,22 @@ jest-test-results.json
 simulation_results
 trader_data_cache
 
+# Generated data files
 dataset/
 merged_trades/
 ws_user_activity/
+
+# Data file formats
 *.jsonl
+*_prices.json
+*_prices.jsonl
+*_state.json
+meta.json
+
+# Generated merged trade files
+merged_trades/**/*.json
+
+# Generated market price files
+merged_trades/**/*_prices.json
+merged_trades/**/*_prices.jsonl
 

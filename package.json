@@ -4,7 +4,7 @@
     "main": "index.js",
     "scripts": {
         "store-user-trades": "ts-node src/scripts/storeUserTradesRealtime.ts",
-        "match-trades": "ts-node src/scripts/matchAndMergeTrades.ts",
+        "match-trades": "node --max-old-space-size=8192 --expose-gc -r ts-node/register src/scripts/matchAndMergeTrades.ts",
         "fast-monitor": "ts-node src/scripts/fastUserActivityMonitor.ts",
         "ws-user-activity": "ts-node src/scripts/marketWsUserActivity.ts",
         "dual-rest-poll": "ts-node src/scripts/dualRestPolling.ts",
