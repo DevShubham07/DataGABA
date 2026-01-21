@@ -2,6 +2,7 @@ import axios, { AxiosError } from 'axios';
 import fs from 'fs';
 import path from 'path';
 import * as dotenv from 'dotenv';
+import { uploadToR2, isR2Configured, downloadFromR2 } from '../utils/r2Client';
 
 dotenv.config();
 
@@ -254,13 +255,30 @@ const normalizeStringArray = (value: unknown): string[] => {
     return [];
 };
 
-const statePathFor = (outDir: string, user: string) =>
-    path.join(outDir, sanitizeFileComponent(user), '_state.json');
+const stateR2KeyFor = (user: string) =>
+    `raw_events/${sanitizeFileComponent(user)}/_state.json`;
 
-const loadState = (outDir: string, user: string): PersistedState => {
-    const statePath = statePathFor(outDir, user);
+const metaR2KeyFor = (user: string, slugId: string) =>
+    `raw_events/${sanitizeFileComponent(user)}/by_slug/${sanitizeFileComponent(slugId)}/meta.json`;
+
+const saveMetaToR2 = async (user: string, slugId: string, meta: any) => {
+    if (!isR2Configured()) {
+        console.warn('⚠️  R2 not configured, skipping meta.json save');
+        return;
+    }
+    
+    const r2Key = metaR2KeyFor(user, slugId);
+    await uploadToR2({
+        key: r2Key,
+        content: JSON.stringify(meta, null, 2) + '\n',
+        contentType: 'application/json',
+    });
+};
+
+const loadState = async (outDir: string, user: string): Promise<PersistedState> => {
+    const r2Key = stateR2KeyFor(user);
     try {
-        if (!fs.existsSync(statePath)) {
+        if (!isR2Configured()) {
             return {
                 user,
                 updatedAt: new Date().toISOString(),
@@ -269,7 +287,18 @@ const loadState = (outDir: string, user: string): PersistedState => {
                 seenTxSet: {},
             };
         }
-        const raw = fs.readFileSync(statePath, 'utf8');
+        
+        const raw = await downloadFromR2(r2Key);
+        if (!raw) {
+            return {
+                user,
+                updatedAt: new Date().toISOString(),
+                lastTimestampByGroup: {},
+                seenTxOrder: [],
+                seenTxSet: {},
+            };
+        }
+        
         const parsed = JSON.parse(raw) as Partial<PersistedState>;
         return {
             user,
@@ -289,17 +318,21 @@ const loadState = (outDir: string, user: string): PersistedState => {
     }
 };
 
-const saveState = (outDir: string, user: string, state: PersistedState) => {
-    const userDir = path.join(outDir, sanitizeFileComponent(user));
-    if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
-
-    const statePath = statePathFor(outDir, user);
+const saveState = async (outDir: string, user: string, state: PersistedState) => {
+    const r2Key = stateR2KeyFor(user);
     const payload: PersistedState = {
         ...state,
         user,
         updatedAt: new Date().toISOString(),
     };
-    fs.writeFileSync(statePath, JSON.stringify(payload, null, 2), 'utf8');
+    
+    if (isR2Configured()) {
+        await uploadToR2({
+            key: r2Key,
+            content: JSON.stringify(payload, null, 2),
+            contentType: 'application/json',
+        });
+    }
 };
 
 const makeDedupKey = (t: ActivityTrade) => {
@@ -514,31 +547,206 @@ const logHealthStatus = () => {
     );
 };
 
-// ---- low-latency JSONL writer (append-only) ----
+// ---- Local-first JSONL writer (writes locally, uploads to R2 when slug ends) ----
 class JsonlWriter {
-    private streams = new Map<string, fs.WriteStream>();
+    private activeSlugs = new Set<string>(); // Track active slugs
+    private completedSlugs = new Map<string, NodeJS.Timeout>(); // Slug -> timeout for upload
+    private currentSlug: string | null = null; // Track current slug being written
+    private readonly SLUG_END_DELAY_MS = 20000; // Wait 20 seconds after slug ends before uploading
+    private readonly MAX_CONCURRENT_UPLOADS = 2; // Max concurrent uploads to R2
+
+    constructor() {
+        if (!isR2Configured()) {
+            console.warn('⚠️  R2 not configured - files will only be saved locally!');
+        }
+    }
 
     write(filePath: string, obj: any) {
-        const dir = path.dirname(filePath);
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        // Ensure directory exists
+        ensureDirForFile(filePath);
 
-        let s = this.streams.get(filePath);
-        if (!s) {
-            s = fs.createWriteStream(filePath, { flags: 'a' });
-            this.streams.set(filePath, s);
+        // Write directly to local file (append mode)
+        const jsonLine = JSON.stringify(obj) + '\n';
+        try {
+            fs.appendFileSync(filePath, jsonLine, 'utf8');
+        } catch (err: any) {
+            console.error(`❌ Failed to write to ${filePath}: ${err.message}`);
+            return;
         }
-        s.write(JSON.stringify(obj) + '\n');
+
+        // Extract slug from file path to track active slugs
+        // Path format: dataset/0x.../by_slug/btc-updown-15m-123/events.jsonl
+        const slugMatch = filePath.match(/by_slug\/([^\/]+)\//);
+        if (slugMatch) {
+            const slugId = slugMatch[1];
+            this.trackSlug(slugId, filePath);
+        }
+    }
+
+    private trackSlug(slugId: string, filePath: string) {
+        // If this is a different slug than current, the previous slug ended
+        if (this.currentSlug !== null && this.currentSlug !== slugId) {
+            // Previous slug ended - schedule upload
+            this.scheduleSlugUpload(this.currentSlug, filePath);
+        }
+
+        // Update current slug
+        if (!this.activeSlugs.has(slugId)) {
+            this.activeSlugs.add(slugId);
+        }
+        this.currentSlug = slugId;
+    }
+
+    private async uploadSlugToR2(slugId: string) {
+        if (!isR2Configured()) {
+            console.warn(`⚠️  R2 not configured, skipping upload for slug ${slugId}`);
+            return;
+        }
+
+        // Extract user from slug path - need to search for the slug directory
+        // We need to find the actual file path that contains this slug
+        const datasetDir = path.join(process.cwd(), 'dataset');
+        if (!fs.existsSync(datasetDir)) {
+            return;
+        }
+
+        // Search for slug directory in dataset
+        let slugDir: string | null = null;
+        try {
+            const userDirs = fs.readdirSync(datasetDir);
+            for (const userDir of userDirs) {
+                const userPath = path.join(datasetDir, userDir);
+                if (!fs.statSync(userPath).isDirectory()) continue;
+                
+                const bySlugPath = path.join(userPath, 'by_slug', sanitizeFileComponent(slugId));
+                if (fs.existsSync(bySlugPath)) {
+                    slugDir = bySlugPath;
+                    break;
+                }
+            }
+        } catch {
+            return;
+        }
+
+        if (!slugDir || !fs.existsSync(slugDir)) {
+            return;
+        }
+
+        const filesToUpload: string[] = [];
+        
+        // Find events.jsonl
+        const eventsFile = path.join(slugDir, 'events.jsonl');
+        if (fs.existsSync(eventsFile)) {
+            filesToUpload.push(eventsFile);
+        }
+
+        // Find meta.json
+        const metaFile = path.join(slugDir, 'meta.json');
+        if (fs.existsSync(metaFile)) {
+            filesToUpload.push(metaFile);
+        }
+
+        if (filesToUpload.length === 0) {
+            return;
+        }
+
+        // Upload files to R2
+        for (const localFile of filesToUpload) {
+            try {
+                const relativePath = path.relative(process.cwd(), localFile);
+                const r2Key = relativePath.replace(/^dataset\//, 'raw_events/');
+                
+                const content = fs.readFileSync(localFile, 'utf8');
+                const contentType = localFile.endsWith('.json') ? 'application/json' : 'application/x-ndjson';
+                
+                const success = await uploadToR2({
+                    key: r2Key,
+                    content,
+                    contentType,
+                });
+
+                if (success) {
+                    // Delete local file after successful upload
+                    fs.unlinkSync(localFile);
+                    console.log(`   ✅ Uploaded and deleted: ${path.basename(localFile)} → ${r2Key}`);
+                } else {
+                    console.error(`   ❌ Failed to upload ${path.basename(localFile)} to R2, keeping local file`);
+                }
+            } catch (err: any) {
+                console.error(`   ❌ Error uploading ${path.basename(localFile)}: ${err.message}, keeping local file`);
+            }
+        }
+
+        // Try to remove empty directory
+        try {
+            const files = fs.readdirSync(slugDir);
+            if (files.length === 0) {
+                fs.rmdirSync(slugDir);
+                // Try to remove parent by_slug if empty
+                const bySlugParent = path.dirname(slugDir);
+                const bySlugFiles = fs.readdirSync(bySlugParent);
+                if (bySlugFiles.length === 0) {
+                    fs.rmdirSync(bySlugParent);
+                }
+            }
+        } catch {
+            // Ignore errors removing directory
+        }
+    }
+
+    async scheduleSlugUpload(slugId: string, filePath: string) {
+        // Cancel existing timeout if any
+        const existingTimeout = this.completedSlugs.get(slugId);
+        if (existingTimeout) {
+            clearTimeout(existingTimeout);
+        }
+
+        // Remove from active slugs
+        this.activeSlugs.delete(slugId);
+
+        // Schedule upload after delay
+        const timeout = setTimeout(() => {
+            this.completedSlugs.delete(slugId);
+            this.uploadSlugToR2(slugId).catch(err => {
+                console.error(`❌ Failed to upload slug ${slugId}:`, err.message);
+            });
+        }, this.SLUG_END_DELAY_MS);
+
+        this.completedSlugs.set(slugId, timeout);
+        console.log(`   ⏳ Scheduled upload for completed slug ${slugId} in ${this.SLUG_END_DELAY_MS / 1000}s`);
+    }
+
+    async flush() {
+        // Upload all completed slugs immediately
+        const slugsToUpload = Array.from(this.completedSlugs.keys());
+        for (const slugId of slugsToUpload) {
+            const timeout = this.completedSlugs.get(slugId);
+            if (timeout) {
+                clearTimeout(timeout);
+                this.completedSlugs.delete(slugId);
+            }
+            await this.uploadSlugToR2(slugId);
+        }
+
+        // Upload all active slugs
+        const activeSlugs = Array.from(this.activeSlugs);
+        for (const slugId of activeSlugs) {
+            await this.uploadSlugToR2(slugId);
+        }
+        this.activeSlugs.clear();
     }
 
     closeAll() {
-        for (const s of this.streams.values()) {
-            try {
-                s.end();
-            } catch {
-                // ignore
-            }
+        // Clear all timeouts
+        for (const timeout of this.completedSlugs.values()) {
+            clearTimeout(timeout);
         }
-        this.streams.clear();
+        this.completedSlugs.clear();
+
+        // Upload remaining slugs
+        this.flush().catch(() => {
+            // Ignore errors during shutdown
+        });
     }
 }
 
@@ -767,22 +975,21 @@ const computeCandidateSlugsForPrefix = (slugPrefix: string): string[] => {
 };
 
 const loadOrFetchMetaForSlug = async (opts: { outDir: string; user: string; slugId: string }) => {
-    const metaPath = path.join(
-        opts.outDir,
-        sanitizeFileComponent(opts.user),
-        'by_slug',
-        sanitizeFileComponent(opts.slugId),
-        'meta.json'
-    );
+    const r2Key = metaR2KeyFor(opts.user, opts.slugId);
+    
+    // Try to load from R2 first
     try {
-        if (fs.existsSync(metaPath)) {
-            const raw = fs.readFileSync(metaPath, 'utf8');
-            return JSON.parse(raw);
+        if (isR2Configured()) {
+            const raw = await downloadFromR2(r2Key);
+            if (raw) {
+                return JSON.parse(raw);
+            }
         }
     } catch {
         // ignore
     }
 
+    // Fetch from API if not in R2
     try {
         const url = `https://gamma-api.polymarket.com/markets?limit=1&slug=${encodeURIComponent(opts.slugId)}`;
         const j = await fetchJson<any>(url, 15000);
@@ -795,8 +1002,8 @@ const loadOrFetchMetaForSlug = async (opts: { outDir: string; user: string; slug
             clobTokenIds,
             outcomes: normalizeStringArray(m.outcomes),
         };
-        ensureDirForFile(metaPath);
-        fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2) + '\n', 'utf8');
+        // Save to R2 instead of local file
+        await saveMetaToR2(opts.user, opts.slugId, meta);
         return meta;
     } catch {
         return null;
@@ -1156,7 +1363,7 @@ const connectUserWs = async (opts: {
         );
     }
 
-    const state = loadState(opts.outDir, opts.user);
+    const state = await loadState(opts.outDir, opts.user);
     const conditionIdToSlug = new Map<string, string>();
 
     // Reconnection state
@@ -1366,7 +1573,7 @@ const connectUserWs = async (opts: {
                 const removed = state.seenTxOrder.splice(0, removeCount);
                 for (const k of removed) delete state.seenTxSet[k];
             }
-            saveState(opts.outDir, opts.user, state);
+            await saveState(opts.outDir, opts.user, state);
 
             const slugOut = slugId || conditionId || 'unknown';
             const unified = toUnified('user_ws', record);
@@ -1467,7 +1674,7 @@ const connectMarketWs = async (opts: {
     const wsUrl = `${wsBase}/ws/market`;
     // In unified mode, avoid writing to the shared REST `_state.json` to prevent contention.
     // Market WS can be high-volume; we keep an in-memory dedup to avoid obvious duplicates within a run.
-    const state = opts.unified ? null : loadState(opts.outDir, opts.user);
+    const state = opts.unified ? null : await loadState(opts.outDir, opts.user);
     const wsSeen = new Set<string>();
     const wsSeenOrder: string[] = [];
 
@@ -1761,6 +1968,228 @@ const connectMarketWs = async (opts: {
 
             console.log('🔌 Market WS closed');
 
+=======
+
+        const ws = new WsLib(wsUrl);
+        currentWs = ws;
+        let pingTimer: NodeJS.Timeout | null = null;
+        let lastPongTime = Date.now();
+        const PONG_TIMEOUT_MS = 30000; // If no pong in 30s, consider connection dead
+
+        ws.addEventListener('open', () => {
+            // Reset reconnect attempts on successful connection
+            reconnectAttempts = 0;
+
+            ws.send(JSON.stringify({ assets_ids: [], type: 'market' }));
+            lastPongTime = Date.now();
+            pingTimer = setInterval(() => {
+                try {
+                    // Check if we've received a pong recently
+                    const timeSinceLastPong = Date.now() - lastPongTime;
+                    if (timeSinceLastPong > PONG_TIMEOUT_MS) {
+                        console.warn(`⚠️ Market WS: No pong received in ${Math.round(timeSinceLastPong / 1000)}s, forcing reconnect...`);
+                        ws.close();
+                        return;
+                    }
+                    ws.send('PING');
+                } catch {
+                    // ignore
+                }
+            }, 10_000);
+            console.log(`🔌 Market WS connected: ${wsUrl}`);
+
+            // Re-subscribe to previously subscribed assets after reconnection
+            if (subscribed.size > 0) {
+                const assetIds = Array.from(subscribed);
+                try {
+                    ws.send(JSON.stringify({ assets_ids: assetIds, operation: 'subscribe' }));
+                    console.log(`🔄 Re-subscribed to ${assetIds.length} assets after reconnection`);
+                } catch {
+                    // ignore
+                }
+            }
+
+            // Seed subscriptions from Gamma if a slug prefix is provided.
+            // This runs asynchronously and failures are non-blocking
+            (async () => {
+                if (!opts.slugPrefix) return;
+                try {
+                    const is15mSeries = /-15m$/.test(opts.slugPrefix);
+                    const candidateSlugs: string[] = [];
+                    if (is15mSeries) {
+                        const nowSec = Math.floor(Date.now() / 1000);
+                        const bucket = Math.floor(nowSec / 900) * 900;
+                        for (const t of [bucket - 900, bucket, bucket + 900]) {
+                            candidateSlugs.push(`${opts.slugPrefix}-${t}`);
+                        }
+                    } else {
+                        // Fallback: try exact slug
+                        candidateSlugs.push(opts.slugPrefix);
+                    }
+                    console.log(`🧭 Market seed slugs: ${candidateSlugs.join(', ')}`);
+
+                    // Process slugs with individual error handling and shorter timeout
+                    let successCount = 0;
+                    for (const slug of candidateSlugs) {
+                        try {
+                            const url = `https://gamma-api.polymarket.com/markets?limit=1&slug=${encodeURIComponent(
+                                slug
+                            )}`;
+                            // Use shorter timeout (5s) to avoid long waits
+                            const j = await fetchJson<any>(url, 5000);
+                            
+                            const m = Array.isArray(j) ? j[0] : null;
+                            const clobTokenIds = normalizeStringArray(m?.clobTokenIds);
+                            if (!m?.conditionId || clobTokenIds.length === 0) {
+                                continue; // Skip silently if market not found
+                            }
+                            const meta = {
+                                conditionId: m.conditionId,
+                                slugId: m.slug,
+                                clobTokenIds,
+                                outcomes: normalizeStringArray(m.outcomes),
+                            };
+                            // Save to R2 instead of local file
+                            await saveMetaToR2(opts.user, m.slug, meta);
+                            doSubscribe(clobTokenIds);
+                            console.log(`✅ Seeded market ${m.slug} (${m.conditionId})`);
+                            successCount++;
+                        } catch (slugError: any) {
+                            // Silently skip individual slug failures (timeout, not found, etc.)
+                            // This is expected for future slugs that don't exist yet
+                            continue;
+                        }
+                    }
+                    
+                    if (successCount === 0 && candidateSlugs.length > 0) {
+                        console.warn(`⚠️  Market seeding: No markets found for ${candidateSlugs.length} candidate slug(s). This is normal if markets haven't started yet.`);
+                    }
+                } catch (e: any) {
+                    // Non-blocking: log warning but don't fail the WebSocket connection
+                    console.warn(`⚠️  Market seeding error (non-blocking): ${e.message || e}`);
+                }
+            })();
+        });
+
+        ws.addEventListener('message', async (evt: any) => {
+            // Update last pong time on any message (PONG responses or data messages indicate connection is alive)
+            lastPongTime = Date.now();
+            
+            const seenAtMs = Date.now();
+            const seenAt = new Date(seenAtMs).toISOString();
+            let msg: any;
+            try {
+                msg = JSON.parse(typeof evt.data === 'string' ? evt.data : String(evt.data));
+            } catch {
+                return;
+            }
+
+            const conditionId = extractConditionId(msg);
+            const eventType = extractEventType(msg);
+            const eventTimeMs = parseEventTimeMs(msg);
+            const eventTime = typeof eventTimeMs === 'number' ? new Date(eventTimeMs).toISOString() : undefined;
+
+            let slugId: string | undefined =
+                (typeof msg?.slug === 'string' ? msg.slug : undefined) ||
+                (typeof msg?.market_slug === 'string' ? msg.market_slug : undefined);
+
+            if (!slugId && conditionId) slugId = marketToSlug.get(conditionId);
+
+            // If still unknown, resolve via gamma (cheap + cached).
+            if (!slugId && conditionId) {
+                const meta = await fetchMarketMetaForConditionId(conditionId);
+                if (meta) {
+                    marketToSlug.set(meta.conditionId, meta.slugId);
+                    slugId = meta.slugId;
+                    // subscribe to both outcome token IDs to get book updates
+                    doSubscribe(meta.clobTokenIds);
+                    // Save meta.json to R2
+                    await saveMetaToR2(opts.user, meta.slugId, meta);
+                }
+            }
+
+            const assetId =
+                (typeof msg?.asset_id === 'string' ? msg.asset_id : undefined) ||
+                (typeof msg?.assetId === 'string' ? msg.assetId : undefined);
+
+            const dedupKey =
+                typeof msg?.hash === 'string'
+                    ? `hash:${msg.hash}|t:${eventTimeMs ?? seenAtMs}|a:${assetId ?? 'na'}|e:${eventType ?? 'na'}`
+                    : `t:${eventTimeMs ?? seenAtMs}|a:${assetId ?? 'na'}|e:${eventType ?? 'na'}|h:${JSON.stringify(msg).slice(
+                          0,
+                          200
+                      )}`;
+
+            const record: WsEventRecord = {
+                seenAtMs,
+                seenAt,
+                eventTimeMs,
+                eventTime,
+                conditionId,
+                slugId,
+                eventType,
+                dedupKey,
+                data: opts.raw ? msg : msg,
+            };
+
+            if (state) {
+                if (state.seenTxSet[dedupKey]) return;
+                state.seenTxSet[dedupKey] = true;
+                state.seenTxOrder.push(dedupKey);
+                if (state.seenTxOrder.length > MAX_SEEN_TX) {
+                    const removeCount = state.seenTxOrder.length - MAX_SEEN_TX;
+                    const removed = state.seenTxOrder.splice(0, removeCount);
+                    for (const k of removed) delete state.seenTxSet[k];
+                }
+                await saveState(opts.outDir, opts.user, state);
+            } else {
+                if (wsSeen.has(dedupKey)) return;
+                wsSeen.add(dedupKey);
+                wsSeenOrder.push(dedupKey);
+                if (wsSeenOrder.length > MAX_SEEN_TX) {
+                    const removeCount = wsSeenOrder.length - MAX_SEEN_TX;
+                    const removed = wsSeenOrder.splice(0, removeCount);
+                    for (const k of removed) wsSeen.delete(k);
+                }
+            }
+
+            const slugOut = slugId || conditionId || 'unknown';
+            const unified = toUnified('market_ws', record);
+            const tokenToOutcome = slugId ? loadTokenOutcomeMap(slugId) : undefined;
+            const mlEvents = toMlEvents(unified, { compact: opts.compact !== false, raw: opts.raw, tokenToOutcome });
+            const outPath = opts.unified
+                ? eventsJsonlPathFor(opts.outDir, opts.user, slugOut)
+                : jsonlPathFor(opts.outDir, opts.user, slugOut, 'market');
+            for (const e of mlEvents) opts.writer.write(outPath, e);
+            healthStats.marketWsEvents += mlEvents.length;
+            healthStats.lastEventTime = Date.now();
+            if (opts.pretty) {
+                for (const e of mlEvents) console.log(JSON.stringify(e, null, 2));
+            }
+        });
+
+        ws.addEventListener('error', (e: any) => {
+            console.error('❌ Market WS error:', e?.message || e);
+            // If error occurs and connection is not already closing, force close to trigger reconnection
+            if (ws && ws.readyState !== ws.CLOSING && ws.readyState !== ws.CLOSED) {
+                try {
+                    ws.close();
+                } catch {
+                    // Ignore errors during close
+                }
+            }
+        });
+
+        ws.addEventListener('close', () => {
+            // Clear ping timer
+            if (pingTimer) {
+                clearInterval(pingTimer);
+                pingTimer = null;
+            }
+            currentWs = null;
+
+            console.log('🔌 Market WS closed');
+
             // Schedule reconnection with exponential backoff
             if (shouldRun) {
                 reconnectAttempts++;
@@ -1993,7 +2422,7 @@ const startRestPollingLoop = async (opts: {
     const userDir = path.join(resolvedOut, sanitizeFileComponent(opts.user));
     if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
 
-    let state = loadState(resolvedOut, opts.user);
+    let state = await loadState(resolvedOut, opts.user);
 
     console.log(`🧩 REST polling enabled alongside WS (interval=${opts.intervalSeconds}s, limit=${opts.limit})`);
 
@@ -2013,7 +2442,7 @@ const startRestPollingLoop = async (opts: {
                       compact: opts.compact,
                   })
                 : upsertTrades(resolvedOut, opts.user, state, trades, opts.slugPrefix, opts.pretty);
-            saveState(resolvedOut, opts.user, state);
+            await saveState(resolvedOut, opts.user, state);
 
             const now = new Date().toISOString();
             if (appended > 0) console.log(`[${now}] rest +${appended}`);
@@ -2026,10 +2455,24 @@ const startRestPollingLoop = async (opts: {
 };
 
 let shouldRun = true;
+let globalWriter: JsonlWriter | null = null;
+
 const installShutdownHandlers = () => {
-    const shutdown = (signal: string) => {
+    const shutdown = async (signal: string) => {
         console.log(`\n🛑 Received ${signal}, stopping...`);
         shouldRun = false;
+        
+        // Flush writer before exit
+        if (globalWriter) {
+            console.log('💾 Flushing writer and uploading remaining slugs...');
+            await globalWriter.flush().catch(err => {
+                console.error(`❌ Error flushing writer: ${err.message}`);
+            });
+        }
+        
+        // Give a moment for uploads to complete
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        process.exit(0);
     };
     process.on('SIGINT', () => shutdown('SIGINT'));
     process.on('SIGTERM', () => shutdown('SIGTERM'));
@@ -2078,6 +2521,7 @@ const main = async () => {
             }${compact ? ' (compact ML schema)' : ' (full schema)'}\n`
         );
         const writer = new JsonlWriter();
+        globalWriter = writer; // Store for shutdown handler
         let marketSubscribeFn: ((assetIds: string[]) => void) | null = null;
 
         // Start periodic health logging
@@ -2148,15 +2592,8 @@ const main = async () => {
                     // Resolve token IDs and subscribe market channel to the right assets for this market
                     const meta = await fetchMarketMetaForConditionId(conditionId);
                     if (meta) {
-                        const metaPath = path.join(
-                            resolvedOut,
-                            sanitizeFileComponent(user),
-                            'by_slug',
-                            sanitizeFileComponent(slugId),
-                            'meta.json'
-                        );
-                        ensureDirForFile(metaPath);
-                        fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2) + '\n', 'utf8');
+                        // Save meta.json to R2
+                        await saveMetaToR2(user, slugId, meta);
                         if (marketSubscribeFn) marketSubscribeFn(meta.clobTokenIds);
                     }
                 },
@@ -2168,7 +2605,7 @@ const main = async () => {
         return;
     }
 
-    let state = loadState(resolvedOut, user);
+    let state = await loadState(resolvedOut, user);
 
     console.log(`📡 Tracking trades for ${user}`);
     console.log(`🗂  Output dir: ${userDir}`);
@@ -2184,7 +2621,7 @@ const main = async () => {
         try {
             const trades = await fetchTrades(user, limit);
             const appended = upsertTrades(resolvedOut, user, state, trades, slugPrefix, pretty);
-            saveState(resolvedOut, user, state);
+            await saveState(resolvedOut, user, state);
 
             const now = new Date().toISOString();
             if (appended > 0) {

@@ -69,3 +69,6 @@ merged_trades/**/*.json
 merged_trades/**/*_prices.json
 merged_trades/**/*_prices.jsonl
 
+# Dataset files
+dataset/**/*.jsonl
+dataset/**/*.json

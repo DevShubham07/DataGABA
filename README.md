@@ -59,6 +59,29 @@ Then:
 npm run store-user-trades -- --mode ws --ws-mode user --user 0x... --slug-prefix btc-updown-15m --out ./user_trade_logs_dual_ws --raw
 ```
 
+## Deployment
+
+### Deploy to Fly.io
+
+See [DEPLOY_FLY.md](./DEPLOY_FLY.md) for a complete guide on deploying to Fly.io.
+
+Quick start:
+```bash
+# Install Fly CLI
+brew install flyctl  # or see DEPLOY_FLY.md for other platforms
+
+# Login
+fly auth login
+
+# Create app and deploy
+fly launch
+fly volumes create polymarket_data --size 10 --region iad
+fly secrets set TARGET_USER=0x...
+fly deploy
+```
+
 ## Files
 
 - Main script: `src/scripts/storeUserTradesRealtime.ts`
+- Merger script: `src/scripts/matchAndMergeTrades.ts`
+- Deployment: See `DEPLOY_FLY.md` and `fly.toml`

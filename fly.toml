@@ -1,0 +1,29 @@
+# fly.toml app configuration file generated for polymarket-ethereum-collector on 2026-01-21T13:45:22+05:30
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'polymarket-ethereum-collector'
+primary_region = 'iad'
+
+[build]
+
+[env]
+  NODE_ENV = 'production'
+
+[[mounts]]
+  source = 'polymarket_ethereum_data'
+  destination = '/data'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  cpu_kind = 'shared'
+  cpus = 2
+  memory_mb = 4096

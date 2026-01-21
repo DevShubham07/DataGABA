@@ -1,172 +1,231 @@
+#!/usr/bin/env ts-node
+/**
+ * Fetch Historical Trades for Ethereum 1-Hour Markets
+ * 
+ * Steps:
+ * 1. Generate market slugs for Ethereum 1-hour markets (decreasing hour)
+ * 2. For each slug, fetch conditionId from Polymarket API
+ * 3. Fetch user trades using conditionId
+ * 4. Prettify and sort data by timestamp
+ * 5. Save files slug-wise
+ */
+
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
-import { ENV } from '../config/env';
+import * as dotenv from 'dotenv';
 
-const USER_ADDRESSES = ENV.USER_ADDRESSES;
+dotenv.config();
 
-const HISTORY_DAYS = (() => {
-    const raw = process.env.HISTORY_DAYS;
-    const value = raw ? Number(raw) : 30;
-    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 30;
-})();
+const USER_ADDRESS = process.env.USER_ADDRESSES?.split(',')[0] || '0x6031b6eed1c97e853c6e0f03ad3ce3529351f96d';
+const OUTPUT_DIR = path.join(process.cwd(), 'historical_trades');
+const MAX_MARKETS = 100;
+const DELAY_BETWEEN_REQUESTS_MS = 500; // Rate limiting
 
-const MAX_TRADES_PER_TRADER = (() => {
-    const raw = process.env.HISTORY_MAX_TRADES;
-    const value = raw ? Number(raw) : 20000;
-    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 20000;
-})();
-
-const BATCH_SIZE = (() => {
-    const raw = process.env.HISTORY_BATCH_SIZE;
-    const value = raw ? Number(raw) : 100;
-    return Number.isFinite(value) && value > 0 ? Math.min(Math.floor(value), 1000) : 100;
-})();
-
-const MAX_PARALLEL = (() => {
-    const raw = process.env.HISTORY_MAX_PARALLEL;
-    const value = raw ? Number(raw) : 4;
-    return Number.isFinite(value) && value > 0 ? Math.min(Math.floor(value), 10) : 4;
-})();
-
-interface TradeApiResponse {
-    id: string;
-    timestamp: number;
-    slug?: string;
-    market?: string;
-    asset: string;
-    side: 'BUY' | 'SELL';
-    price: number;
-    usdcSize: number;
-    size: number;
-    outcome?: string;
+// Ensure output directory exists
+if (!fs.existsSync(OUTPUT_DIR)) {
+    fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 }
 
-interface CachedTrades {
-    name: string;
-    traderAddress: string;
-    fetchedAt: string;
-    period: string;
-    historyDays: number;
-    totalTrades: number;
-    trades: TradeApiResponse[];
-}
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const fetchBatch = async (
-    address: string,
-    offset: number,
-    limit: number
-): Promise<TradeApiResponse[]> => {
-    const response = await axios.get(
-        `https://data-api.polymarket.com/activity?user=${address}&type=TRADE&limit=${limit}&offset=${offset}`,
-        {
-            timeout: 15000,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            },
-        }
-    );
-
-    return Array.isArray(response.data) ? response.data : [];
-};
-
-const fetchTradesForTrader = async (address: string): Promise<TradeApiResponse[]> => {
-    console.log(`\n🚀 Loading history for ${address} (last ${HISTORY_DAYS} days)`);
-    const sinceTimestamp = Math.floor((Date.now() - HISTORY_DAYS * 24 * 60 * 60 * 1000) / 1000);
-
-    let offset = 0;
-    let allTrades: TradeApiResponse[] = [];
-    let hasMore = true;
-
-    while (hasMore && allTrades.length < MAX_TRADES_PER_TRADER) {
-        const batchLimit = Math.min(BATCH_SIZE, MAX_TRADES_PER_TRADER - allTrades.length);
-        const batch = await fetchBatch(address, offset, batchLimit);
-
-        if (batch.length === 0) {
-            hasMore = false;
-            break;
-        }
-
-        const filtered = batch.filter((trade) => trade.timestamp >= sinceTimestamp);
-        allTrades.push(...filtered);
-
-        if (batch.length < batchLimit || filtered.length < batch.length) {
-            hasMore = false;
-        }
-
-        offset += batchLimit;
-
-        if (allTrades.length % (BATCH_SIZE * MAX_PARALLEL) === 0) {
-            await sleep(150);
-        }
+// Generate Ethereum 1-hour market slugs
+const generateMarketSlugs = (count: number): string[] => {
+    const slugs: string[] = [];
+    const now = new Date();
+    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june',
+                       'july', 'august', 'september', 'october', 'november', 'december'];
+    
+    let currentDate = new Date(now);
+    let marketsGenerated = 0;
+    
+    // Start from current hour and go backwards
+    while (marketsGenerated < count) {
+        const month = monthNames[currentDate.getMonth()].toLowerCase();
+        const day = currentDate.getDate();
+        const hour = currentDate.getHours();
+        
+        const ampm = hour >= 12 ? 'pm' : 'am';
+        const hour12 = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
+        
+        const slug = `ethereum-up-or-down-${month}-${day}-${hour12}${ampm}-et`;
+        slugs.push(slug);
+        marketsGenerated++;
+        
+        // Move back 1 hour
+        currentDate.setHours(currentDate.getHours() - 1);
     }
-
-    const sorted = allTrades.sort((a, b) => a.timestamp - b.timestamp);
-    console.log(`✓ Retrieved ${sorted.length} trades`);
-    return sorted;
+    
+    return slugs;
 };
 
-const saveTradesToCache = (address: string, trades: TradeApiResponse[]) => {
-    const cacheDir = path.join(process.cwd(), 'trader_data_cache');
-    if (!fs.existsSync(cacheDir)) {
-        fs.mkdirSync(cacheDir, { recursive: true });
+// Fetch conditionId from market slug
+const fetchConditionId = async (slug: string): Promise<string | null> => {
+    try {
+        const url = `https://gamma-api.polymarket.com/markets/slug/${slug}`;
+        console.log(`   🔗 CURL: curl --request GET --url '${url}'`);
+        const response = await axios.get(url, { timeout: 10000 });
+        
+        if (response.data && response.data.conditionId) {
+            console.log(`   ✅ Got conditionId: ${response.data.conditionId}`);
+            return response.data.conditionId;
+        }
+        
+        console.log(`   ⚠️  No conditionId in response`);
+        return null;
+    } catch (error: any) {
+        if (error.response?.status === 404) {
+            console.log(`   ⚠️  Market not found (404): ${slug}`);
+        } else {
+            console.error(`   ❌ Error fetching conditionId for ${slug}:`, error.message);
+            if (error.response) {
+                console.error(`   Response status: ${error.response.status}`);
+                console.error(`   Response data:`, JSON.stringify(error.response.data).substring(0, 200));
+            }
+        }
+        return null;
     }
-
-    const today = new Date().toISOString().split('T')[0];
-    const cacheFile = path.join(cacheDir, `${address}_${HISTORY_DAYS}d_${today}.json`);
-
-    const payload: CachedTrades = {
-        name: `trader_${address.slice(0, 6)}_${HISTORY_DAYS}d_${today}`,
-        traderAddress: address,
-        fetchedAt: new Date().toISOString(),
-        period: `${HISTORY_DAYS}_days`,
-        historyDays: HISTORY_DAYS,
-        totalTrades: trades.length,
-        trades,
-    };
-
-    fs.writeFileSync(cacheFile, JSON.stringify(payload, null, 2), 'utf8');
-    console.log(`💾 Saved to ${cacheFile}`);
 };
 
-const chunk = <T>(array: T[], size: number): T[][] => {
-    const result: T[][] = [];
-    for (let i = 0; i < array.length; i += size) {
-        result.push(array.slice(i, i + size));
+// Fetch user trades using conditionId
+const fetchUserTrades = async (conditionId: string, slug: string): Promise<any[]> => {
+    try {
+        const url = `https://data-api.polymarket.com/activity?limit=1000&sortBy=TIMESTAMP&sortDirection=DESC&user=${USER_ADDRESS}&market=${conditionId}`;
+        console.log(`   🔗 CURL: curl --request GET --url '${url}'`);
+        const response = await axios.get(url, { timeout: 10000 });
+        
+        console.log(`   📥 Response status: ${response.status}`);
+        console.log(`   📦 Response type: ${Array.isArray(response.data) ? 'Array' : typeof response.data}`);
+        console.log(`   📊 Response length: ${Array.isArray(response.data) ? response.data.length : 'N/A'}`);
+        
+        if (Array.isArray(response.data)) {
+            if (response.data.length > 0) {
+                console.log(`   ✅ Found ${response.data.length} trades`);
+                // Show sample trade
+                console.log(`   📋 Sample trade:`, JSON.stringify(response.data[0]).substring(0, 150));
+            } else {
+                console.log(`   ℹ️  Empty array returned (no trades found)`);
+            }
+            return response.data;
+        }
+        
+        console.log(`   ⚠️  Response is not an array:`, typeof response.data);
+        if (response.data) {
+            console.log(`   Response preview:`, JSON.stringify(response.data).substring(0, 200));
+        }
+        
+        return [];
+    } catch (error: any) {
+        console.error(`   ❌ Error fetching trades for ${slug}:`, error.message);
+        if (error.response) {
+            console.error(`   Response status: ${error.response.status}`);
+            console.error(`   Response data:`, JSON.stringify(error.response.data).substring(0, 200));
+        }
+        return [];
     }
-    return result;
 };
 
-const main = async () => {
-    if (USER_ADDRESSES.length === 0) {
-        console.log('USER_ADDRESSES is empty. Check .env');
+// Save trades to file
+const saveTrades = (slug: string, trades: any[]): void => {
+    if (trades.length === 0) {
+        console.log(`   ⏭️  No trades to save for ${slug}`);
         return;
     }
-
-    console.log('📥 Starting trade history export');
-    console.log(`Traders: ${USER_ADDRESSES.length}`);
-    console.log(
-        `Period: ${HISTORY_DAYS} days, max ${MAX_TRADES_PER_TRADER} trades per trader`
-    );
-
-    const addressChunks = chunk(USER_ADDRESSES, MAX_PARALLEL);
-
-    for (const chunkItem of addressChunks) {
-        await Promise.all(
-            chunkItem.map(async (address) => {
-                try {
-                    const trades = await fetchTradesForTrader(address);
-                    saveTradesToCache(address, trades);
-                } catch (error) {
-                    console.error(`✗ Error loading for ${address}:`, error);
-                }
-            })
-        );
+    
+    // Sort by timestamp
+    trades.sort((a, b) => {
+        const tsA = a.timestamp || 0;
+        const tsB = b.timestamp || 0;
+        return tsA - tsB;
+    });
+    
+    // Prettify and save
+    const fileName = `${slug.replace(/[^a-z0-9-]/gi, '_')}.json`;
+    const filePath = path.join(OUTPUT_DIR, fileName);
+    
+    try {
+        fs.writeFileSync(filePath, JSON.stringify(trades, null, 2), 'utf8');
+        console.log(`   ✅ Saved ${trades.length} trades to ${fileName}`);
+    } catch (error: any) {
+        console.error(`   ❌ Error saving file for ${slug}:`, error.message);
     }
-
-    console.log('\n✅ Export completed');
 };
 
-main();
+// Sleep utility
+const sleep = (ms: number): Promise<void> => {
+    return new Promise(resolve => setTimeout(resolve, ms));
+};
+
+// Main function
+const main = async () => {
+    console.log('🚀 Fetching Historical Trades for Ethereum 1-Hour Markets');
+    console.log('='.repeat(70));
+    console.log(`👤 User: ${USER_ADDRESS}`);
+    console.log(`📁 Output directory: ${OUTPUT_DIR}`);
+    console.log(`📊 Max markets: ${MAX_MARKETS}`);
+    console.log('');
+    
+    // Generate market slugs
+    const slugs = generateMarketSlugs(MAX_MARKETS);
+    console.log(`📋 Generated ${slugs.length} market slugs`);
+    console.log(`   First: ${slugs[0]}`);
+    console.log(`   Last: ${slugs[slugs.length - 1]}`);
+    console.log('');
+    
+    let successCount = 0;
+    let tradeCount = 0;
+    let skippedCount = 0;
+    
+    // Process each market
+    for (let i = 0; i < slugs.length; i++) {
+        const slug = slugs[i];
+        console.log(`[${i + 1}/${slugs.length}] Processing: ${slug}`);
+        
+        // Fetch conditionId
+        const conditionId = await fetchConditionId(slug);
+        await sleep(DELAY_BETWEEN_REQUESTS_MS);
+        
+        if (!conditionId) {
+            skippedCount++;
+            console.log(`   ⏭️  Skipped (no conditionId found)\n`);
+            continue;
+        }
+        
+        console.log(`   📍 ConditionId: ${conditionId}`);
+        
+        // Fetch trades
+        const trades = await fetchUserTrades(conditionId, slug);
+        await sleep(DELAY_BETWEEN_REQUESTS_MS);
+        
+        if (trades.length > 0) {
+            // Save trades
+            saveTrades(slug, trades);
+            tradeCount += trades.length;
+            successCount++;
+        } else {
+            console.log(`   ℹ️  No trades found for this market`);
+            skippedCount++;
+        }
+        
+        console.log('');
+        
+        // Progress update every 10 markets
+        if ((i + 1) % 10 === 0) {
+            console.log(`📊 Progress: ${i + 1}/${slugs.length} markets processed`);
+            console.log(`   ✅ Success: ${successCount} | 📦 Trades: ${tradeCount} | ⏭️  Skipped: ${skippedCount}\n`);
+        }
+    }
+    
+    // Final summary
+    console.log('='.repeat(70));
+    console.log('✅ COMPLETED');
+    console.log('='.repeat(70));
+    console.log(`📊 Markets processed: ${slugs.length}`);
+    console.log(`✅ Markets with trades: ${successCount}`);
+    console.log(`⏭️  Markets skipped: ${skippedCount}`);
+    console.log(`📦 Total trades fetched: ${tradeCount}`);
+    console.log(`📁 Files saved to: ${OUTPUT_DIR}`);
+};
+
+main().catch((error) => {
+    console.error('❌ Fatal error:', error);
+    process.exit(1);
+});

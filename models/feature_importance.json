@@ -1,0 +1,58 @@
+{
+  "outcome": [
+    {
+      "feature": "is_cheaper_outcome",
+      "importance": 0.4842998063585993
+    },
+    {
+      "feature": "price",
+      "importance": 0.3527162675462045
+    },
+    {
+      "feature": "usdcSize",
+      "importance": 0.10079925377456765
+    },
+    {
+      "feature": "size",
+      "importance": 0.024816885932344455
+    },
+    {
+      "feature": "price_distance_from_50",
+      "importance": 0.021259553374278435
+    },
+    {
+      "feature": "hour",
+      "importance": 0.011627295769298584
+    },
+    {
+      "feature": "day_of_week",
+      "importance": 0.004480937244707053
+    }
+  ],
+  "size": [
+    {
+      "feature": "hour",
+      "importance": 0.38672973732833205
+    },
+    {
+      "feature": "price_distance_from_50",
+      "importance": 0.29481516220841797
+    },
+    {
+      "feature": "outcomeIndex",
+      "importance": 0.1381013759784267
+    },
+    {
+      "feature": "day_of_week",
+      "importance": 0.09791491591368721
+    },
+    {
+      "feature": "price",
+      "importance": 0.08243665962590294
+    },
+    {
+      "feature": "is_cheaper_outcome",
+      "importance": 2.14894523304472e-06
+    }
+  ]
+}

@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import * as dotenv from 'dotenv';
+import { uploadToR2, isR2Configured, downloadFromR2 } from '../utils/r2Client';
 
 dotenv.config();
 
@@ -123,7 +124,12 @@ const sanitizeFileComponent = (input: string): string => {
     return cleaned.length > 0 ? cleaned : 'unknown';
 };
 
-const loadMergedTrades = (filePath: string): MergedTrade[] => {
+const ensureDirForFile = (filePath: string) => {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+};
+
+const loadMergedTradesFromLocal = (filePath: string): MergedTrade[] => {
     try {
         if (!fs.existsSync(filePath)) return [];
         const raw = fs.readFileSync(filePath, 'utf8').trim();
@@ -135,22 +141,58 @@ const loadMergedTrades = (filePath: string): MergedTrade[] => {
     }
 };
 
-const saveMergedTrades = (filePath: string, trades: MergedTrade[]) => {
-    const dir = path.dirname(filePath);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(filePath, JSON.stringify(trades, null, 2) + '\n', 'utf8');
+const loadMergedTrades = async (r2Key: string): Promise<MergedTrade[]> => {
+    try {
+        // Read from R2
+        if (!isR2Configured()) {
+            return [];
+        }
+        
+        const raw = await downloadFromR2(r2Key);
+        if (!raw) return [];
+        
+        const parsed = JSON.parse(raw.trim());
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+};
+
+const saveMergedTrades = async (localPath: string, trades: MergedTrade[], r2Key?: string): Promise<void> => {
+    // File should already be written locally, just upload to R2
+    if (isR2Configured() && r2Key) {
+        const content = JSON.stringify(trades, null, 2) + '\n';
+        const success = await uploadToR2({
+            key: r2Key,
+            content,
+            contentType: 'application/json',
+        });
+        if (success) {
+            console.log(`   ☁️  Uploaded ${trades.length} merged trade(s) to R2: ${r2Key}`);
+        } else {
+            console.error(`   ❌ Failed to upload merged trades to R2: ${r2Key}`);
+        }
+    } else {
+        console.warn(`   ⚠️  R2 not configured - merged trades only saved locally!`);
+    }
 };
 
 // Market price record for separate price file
 interface MarketPriceRecord {
     t: number;           // timestamp
-    type: string;        // event type (price_change, last_trade_price)
+    type: string;        // event type (price_change, last_trade_price, trade)
     bestBid?: number;
     bestAsk?: number;
     mid?: number;
     spread?: number;
     price?: number;      // last trade price
     side?: string;
+    // Trade-specific fields (for rest_poll events)
+    tx?: string;         // transaction hash
+    size?: number;        // trade size
+    usdc?: number;       // USDC amount
+    outcome?: string;    // outcome
+    aid?: string;        // asset ID
 }
 
 interface MarketPricesFile {
@@ -174,21 +216,39 @@ interface MarketPricesFile {
     prices: MarketPriceRecord[];
 }
 
-const loadMarketPrices = (filePath: string): MarketPricesFile | null => {
+const loadMarketPrices = async (r2Key: string): Promise<MarketPricesFile | null> => {
     try {
-        if (!fs.existsSync(filePath)) return null;
-        const raw = fs.readFileSync(filePath, 'utf8').trim();
+        // Read from R2 instead of local file
+        if (!isR2Configured()) {
+            return null;
+        }
+        
+        const raw = await downloadFromR2(r2Key);
         if (!raw) return null;
-        return JSON.parse(raw) as MarketPricesFile;
+        
+        return JSON.parse(raw.trim()) as MarketPricesFile;
     } catch {
         return null;
     }
 };
 
-const saveMarketPrices = (filePath: string, data: MarketPricesFile) => {
-    const dir = path.dirname(filePath);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n', 'utf8');
+const saveMarketPrices = async (localPath: string, data: MarketPricesFile, r2Key?: string): Promise<void> => {
+    // File should already be written locally, just upload to R2
+    if (isR2Configured() && r2Key) {
+        const content = JSON.stringify(data, null, 2) + '\n';
+        const success = await uploadToR2({
+            key: r2Key,
+            content,
+            contentType: 'application/json',
+        });
+        if (success) {
+            console.log(`   ☁️  Uploaded prices to R2: ${r2Key}`);
+        } else {
+            console.error(`   ❌ Failed to upload prices to R2: ${r2Key}`);
+        }
+    } else {
+        console.warn(`   ⚠️  R2 not configured - prices only saved locally!`);
+    }
 };
 
 const buildMarketPricesFromEvents = (
@@ -196,30 +256,66 @@ const buildMarketPricesFromEvents = (
     slugId: string,
     existingPrices: MarketPricesFile | null
 ): MarketPricesFile => {
-    // Build a set of existing timestamps to avoid duplicates
-    const existingTimes = new Set<string>(
-        existingPrices?.prices.map(p => `${p.t}:${p.type}:${p.price ?? ''}`) || []
+    // Build a set of existing records to avoid duplicates
+    // Use a more comprehensive key that includes all relevant fields
+    const existingKeys = new Set<string>(
+        existingPrices?.prices.map(p => {
+            // For market_ws events, use bestBid/bestAsk for uniqueness
+            if (p.type === 'price_change' || p.type === 'last_trade_price') {
+                return `${p.t}:${p.type}:${p.bestBid ?? ''}:${p.bestAsk ?? ''}:${p.price ?? ''}:${p.side ?? ''}`;
+            }
+            // For trades, use tx hash if available
+            if (p.type === 'trade' && p.tx) {
+                return `${p.t}:${p.type}:${p.tx}:${p.price ?? ''}:${p.side ?? ''}`;
+            }
+            // Fallback for trades without tx
+            return `${p.t}:${p.type}:${p.price ?? ''}:${p.side ?? ''}`;
+        }) || []
     );
     
-    // Extract new price records
+    // Extract new price records from both market_ws and rest_poll events
     const newPrices: MarketPriceRecord[] = [];
     for (const event of marketEvents) {
-        if (event.src !== 'market_ws') continue;
-        
-        const dedupKey = `${event.t}:${event.type}:${event.price ?? ''}`;
-        if (existingTimes.has(dedupKey)) continue;
-        existingTimes.add(dedupKey);
-        
-        newPrices.push({
-            t: event.t,
-            type: event.type,
-            bestBid: event.bestBid,
-            bestAsk: event.bestAsk,
-            mid: event.mid,
-            spread: event.spread,
-            price: event.price,
-            side: event.side,
-        });
+        // Include market_ws events (market book updates)
+        if (event.src === 'market_ws') {
+            // Create a unique key based on timestamp, type, and market data
+            const dedupKey = `${event.t}:${event.type}:${event.bestBid ?? ''}:${event.bestAsk ?? ''}:${event.price ?? ''}:${event.side ?? ''}`;
+            if (existingKeys.has(dedupKey)) continue;
+            existingKeys.add(dedupKey);
+            
+            newPrices.push({
+                t: event.t,
+                type: event.type,
+                bestBid: event.bestBid,
+                bestAsk: event.bestAsk,
+                mid: event.mid,
+                spread: event.spread,
+                price: event.price,
+                side: event.side,
+            });
+        }
+        // Include rest_poll events (actual trades)
+        else if (event.src === 'rest_poll' && event.price !== undefined) {
+            // Use tx hash in dedup key if available for better uniqueness
+            const dedupKey = event.tx 
+                ? `${event.t}:trade:${event.tx}:${event.price}:${event.side ?? ''}`
+                : `${event.t}:trade:${event.price}:${event.side ?? ''}`;
+            if (existingKeys.has(dedupKey)) continue;
+            existingKeys.add(dedupKey);
+            
+            newPrices.push({
+                t: event.t,
+                type: 'trade', // Mark as trade to distinguish from market book updates
+                price: event.price,
+                side: event.side,
+                tx: event.tx,           // transaction hash
+                size: event.size,        // trade size
+                usdc: event.usdc,       // USDC amount
+                outcome: event.outcome,  // outcome
+                aid: event.aid,         // asset ID
+                // rest_poll trades don't have bid/ask/spread, but we include the trade price and trade details
+            });
+        }
     }
     
     // Merge with existing prices
@@ -278,14 +374,18 @@ const buildMarketPricesFromEvents = (
 
 const readEventsJsonl = (filePath: string): EventRecord[] => {
     try {
-        if (!fs.existsSync(filePath)) return [];
+        // Read from local file
+        if (!fs.existsSync(filePath)) {
+            return [];
+        }
         
-        // For very large files, process line-by-line to avoid memory issues
-        const events: EventRecord[] = [];
         const fileContent = fs.readFileSync(filePath, 'utf8');
+        if (!fileContent) return [];
+        
+        const events: EventRecord[] = [];
         const lines = fileContent.split('\n');
         
-        // Process line by line instead of loading all at once
+        // Process line by line
         for (const line of lines) {
             const trimmed = line.trim();
             if (trimmed) {
@@ -300,36 +400,57 @@ const readEventsJsonl = (filePath: string): EventRecord[] => {
         
         return events;
     } catch (error: any) {
-        console.error(`❌ Error reading ${filePath}: ${error.message}`);
+        // File doesn't exist yet or error - return empty array
         return [];
     }
 };
+
+// Track which slugs we've seen (since we can't list R2 files easily)
+const knownSlugs = new Set<string>();
 
 const getLastLineCount = (filePath: string): number => {
     try {
         if (!fs.existsSync(filePath)) return 0;
         const content = fs.readFileSync(filePath, 'utf8');
+        if (!content) return 0;
         return content.split('\n').filter(Boolean).length;
     } catch {
         return 0;
     }
 };
 
-const findEventsJsonlFiles = (baseDir: string, user: string): Map<string, string> => {
+// Find local events.jsonl files in dataset directory
+const findEventsJsonlFiles = (dataDir: string, user: string, slugPrefix?: string): Map<string, string> => {
     const result = new Map<string, string>();
-    const userDir = path.join(baseDir, sanitizeFileComponent(user), 'by_slug');
-    if (!fs.existsSync(userDir)) return result;
+    const userDir = path.join(dataDir, sanitizeFileComponent(user), 'by_slug');
+    
+    try {
+        if (!fs.existsSync(userDir)) {
+            return result;
+        }
 
-    const entries = fs.readdirSync(userDir, { withFileTypes: true });
-    for (const entry of entries) {
-        if (entry.isDirectory()) {
-            const slugId = entry.name;
-            const eventsPath = path.join(userDir, slugId, 'events.jsonl');
-            if (fs.existsSync(eventsPath)) {
-                result.set(slugId, eventsPath);
+        // List all slug directories
+        const slugDirs = fs.readdirSync(userDir);
+        for (const slugDir of slugDirs) {
+            const slugPath = path.join(userDir, slugDir);
+            if (!fs.statSync(slugPath).isDirectory()) continue;
+
+            // Check if matches slug prefix filter
+            if (slugPrefix && !slugDir.startsWith(sanitizeFileComponent(slugPrefix))) {
+                continue;
+            }
+
+            // Check if events.jsonl exists
+            const eventsFile = path.join(slugPath, 'events.jsonl');
+            if (fs.existsSync(eventsFile)) {
+                result.set(slugDir, eventsFile);
+                knownSlugs.add(slugDir);
             }
         }
+    } catch (err: any) {
+        console.warn(`⚠️  Error scanning local files: ${err.message}`);
     }
+    
     return result;
 };
 
@@ -576,7 +697,7 @@ const mergeTrades = (
     return Array.from(merged.values()).sort((a, b) => a.timestampMs - b.timestampMs);
 };
 
-const watchAndMerge = async (user: string, dataDir: string, mergedDir: string) => {
+const watchAndMerge = async (user: string, dataDir: string, mergedDir: string, slugPrefix?: string) => {
     const userDir = path.join(dataDir, sanitizeFileComponent(user));
     const lastLineCounts = new Map<string, number>();
     let isFirstRun = true;
@@ -587,24 +708,20 @@ const watchAndMerge = async (user: string, dataDir: string, mergedDir: string) =
         restCount: number; 
         marketCount: number;
         marketEvents: EventRecord[];  // Track market events for separate prices file
+        restEvents: EventRecord[];    // Track REST poll events for prices file
     }>();
     let lastWriteTime = 0;
     
     console.log(`🔍 Watching events for user: ${user}`);
-    console.log(`📂 Data dir: ${dataDir}`);
+    console.log(`📂 Reading from local files first: ${dataDir}`);
     console.log(`💾 Merged dir: ${mergedDir}`);
+    console.log(`☁️  Will upload merged trades to R2 after processing`);
     console.log(`⏱  Check interval: ${WATCH_INTERVAL_MS}ms, batch write interval: ${BATCH_WRITE_INTERVAL_MS}ms\n`);
-    
-    // Check if data directory exists
-    if (!fs.existsSync(userDir)) {
-        console.warn(`⚠️  User directory does not exist: ${userDir}`);
-        console.warn(`   Waiting for logger to create events...\n`);
-    }
 
     // Helper function to flush pending writes
     // Note: With the new summary-based approach, files are now compact (no raw market events)
     // so we shouldn't hit JSON string length limits anymore
-    const flushPendingWrites = (force: boolean = false) => {
+    const flushPendingWrites = async (force: boolean = false) => {
         const now = Date.now();
         const timeSinceLastWrite = now - lastWriteTime;
         
@@ -617,53 +734,112 @@ const watchAndMerge = async (user: string, dataDir: string, mergedDir: string) =
         
         const toRemove: string[] = [];
         
-        for (const [slugId, { merged, restCount, marketCount, marketEvents }] of pendingMerges.entries()) {
-            const mergedPath = path.join(
-                mergedDir,
-                sanitizeFileComponent(user),
-                `${sanitizeFileComponent(slugId)}.json`
-            );
-            
-            // Path for separate market prices file
-            const pricesPath = path.join(
-                mergedDir,
-                sanitizeFileComponent(user),
-                `${sanitizeFileComponent(slugId)}_prices.json`
-            );
-            
+        for (const [slugId, { merged, restCount, marketCount, marketEvents, restEvents }] of pendingMerges.entries()) {
             try {
-                // Save merged trades
-                saveMergedTrades(mergedPath, merged);
+                // Generate paths
+                const localMergedPath = path.join(mergedDir, sanitizeFileComponent(user), `${sanitizeFileComponent(slugId)}.json`);
+                const localPricesPath = path.join(mergedDir, sanitizeFileComponent(user), `${sanitizeFileComponent(slugId)}_prices.json`);
+                const r2MergedKey = `merged_trades/${sanitizeFileComponent(user)}/${sanitizeFileComponent(slugId)}.json`;
+                const r2PricesKey = `merged_trades/${sanitizeFileComponent(user)}/${sanitizeFileComponent(slugId)}_prices.json`;
                 
-                // Save separate market prices file if we have market events
+                // Upload merged trades to R2 (file already exists locally)
+                if (fs.existsSync(localMergedPath)) {
+                    await saveMergedTrades(localMergedPath, merged, r2MergedKey);
+                    
+                    // Delete local file after successful upload
+                    if (isR2Configured()) {
+                        try {
+                            fs.unlinkSync(localMergedPath);
+                            console.log(`   🗑️  Deleted local file: ${path.basename(localMergedPath)}`);
+                        } catch {
+                            // Ignore delete errors
+                        }
+                    }
+                }
+                
+                // Save separate market prices file if we have market or rest events
                 let pricesSaved = 0;
-                if (marketEvents.length > 0) {
+                const allPriceEvents = [...marketEvents, ...(restEvents ?? [])];
+                if (allPriceEvents.length > 0) {
                     try {
-                        const existingPrices = loadMarketPrices(pricesPath);
-                        const pricesData = buildMarketPricesFromEvents(marketEvents, slugId, existingPrices);
-                        saveMarketPrices(pricesPath, pricesData);
+                        // Load existing prices (try local first, then R2)
+                        let existingPrices: MarketPricesFile | null = null;
+                        if (fs.existsSync(localPricesPath)) {
+                            try {
+                                const raw = fs.readFileSync(localPricesPath, 'utf8');
+                                existingPrices = JSON.parse(raw);
+                            } catch {
+                                // Ignore parse errors
+                            }
+                        }
+                        if (!existingPrices && isR2Configured()) {
+                            existingPrices = await loadMarketPrices(r2PricesKey);
+                        }
+                        
+                        const pricesData = buildMarketPricesFromEvents(allPriceEvents, slugId, existingPrices);
+                        
+                        // Save locally first
+                        fs.writeFileSync(localPricesPath, JSON.stringify(pricesData, null, 2) + '\n', 'utf8');
+                        
+                        // Upload to R2
+                        if (isR2Configured()) {
+                            await saveMarketPrices(localPricesPath, pricesData, r2PricesKey);
+                            
+                            // Delete local file after successful upload
+                            try {
+                                fs.unlinkSync(localPricesPath);
+                                console.log(`   🗑️  Deleted local file: ${path.basename(localPricesPath)}`);
+                            } catch {
+                                // Ignore delete errors
+                            }
+                        }
+                        
                         pricesSaved = pricesData.totalEvents;
                     } catch (priceErr: any) {
-                        // If prices file fails (too large), fall back to JSONL append
-                        const pricesJsonlPath = pricesPath.replace('.json', '.jsonl');
+                        // If prices file fails (too large), upload as JSONL to R2
+                        const r2PricesJsonlKey = r2PricesKey.replace('.json', '.jsonl');
                         try {
-                            const newPrices = marketEvents
-                                .filter(e => e.src === 'market_ws')
-                                .map(e => JSON.stringify({
-                                    t: e.t,
-                                    type: e.type,
-                                    bestBid: e.bestBid,
-                                    bestAsk: e.bestAsk,
-                                    mid: e.mid,
-                                    spread: e.spread,
-                                    price: e.price,
-                                    side: e.side,
-                                }))
+                            const newPrices = allPriceEvents
+                                .filter(e => e.src === 'market_ws' || (e.src === 'rest_poll' && e.price !== undefined))
+                                .map(e => {
+                                    if (e.src === 'market_ws') {
+                                        return JSON.stringify({
+                                            t: e.t,
+                                            type: e.type,
+                                            bestBid: e.bestBid,
+                                            bestAsk: e.bestAsk,
+                                            mid: e.mid,
+                                            spread: e.spread,
+                                            price: e.price,
+                                            side: e.side,
+                                        });
+                                    } else {
+                                        // rest_poll trade
+                                        return JSON.stringify({
+                                            t: e.t,
+                                            type: 'trade',
+                                            price: e.price,
+                                            side: e.side,
+                                            tx: e.tx,
+                                            size: e.size,
+                                            usdc: e.usdc,
+                                            outcome: e.outcome,
+                                            aid: e.aid,
+                                        });
+                                    }
+                                })
                                 .join('\n');
                             if (newPrices) {
-                                fs.appendFileSync(pricesJsonlPath, newPrices + '\n', 'utf8');
-                                pricesSaved = marketEvents.filter(e => e.src === 'market_ws').length;
-                                console.log(`   ⚠️ ${slugId}: Prices too large for JSON, appended to ${path.basename(pricesJsonlPath)}`);
+                                // Upload JSONL to R2
+                                const success = await uploadToR2({
+                                    key: r2PricesJsonlKey,
+                                    content: newPrices + '\n',
+                                    contentType: 'application/x-ndjson',
+                                });
+                                if (success) {
+                                    pricesSaved = allPriceEvents.filter(e => e.src === 'market_ws' || (e.src === 'rest_poll' && e.price !== undefined)).length;
+                                    console.log(`   ⚠️ ${slugId}: Prices too large for JSON, uploaded as JSONL to R2`);
+                                }
                             }
                         } catch {
                             console.error(`   ❌ ${slugId}: Failed to save prices: ${priceErr.message}`);
@@ -696,22 +872,25 @@ const watchAndMerge = async (user: string, dataDir: string, mergedDir: string) =
 
     while (true) {
         try {
-            const slugFiles = findEventsJsonlFiles(dataDir, user);
+            const slugFiles = findEventsJsonlFiles(dataDir, user, slugPrefix);
             
             if (isFirstRun && slugFiles.size === 0) {
-                console.log(`⏳ No events.jsonl files found yet. Waiting for logger to create data...`);
+                console.log(`⏳ No events found in R2 yet. Waiting for data collector to upload events...`);
             }
             
             // Process files one at a time to avoid memory issues
-            for (const [slugId, eventsPath] of slugFiles.entries()) {
-                const currentLineCount = getLastLineCount(eventsPath);
-                const lastCount = lastLineCounts.get(eventsPath) || 0;
+            for (const [slugId, filePath] of slugFiles.entries()) {
+                const currentLineCount = getLastLineCount(filePath);
+                const lastCount = lastLineCounts.get(filePath) || 0;
                 
                 // On first run, process all existing events; otherwise only new ones
                 if (isFirstRun || currentLineCount > lastCount) {
-                    // New events detected - process this file
-                    const allEvents = readEventsJsonl(eventsPath);
+                    // New events detected - process this file from local filesystem
+                    const allEvents = readEventsJsonl(filePath);
                     const newEvents = allEvents.slice(lastCount);
+                    
+                    // Track this slug for future checks
+                    knownSlugs.add(slugId);
                     
                     if (newEvents.length > 0 || isFirstRun) {
                         // User activity from REST API polling
@@ -720,15 +899,32 @@ const watchAndMerge = async (user: string, dataDir: string, mergedDir: string) =
                         // Market activity from WebSocket - only for this slug
                         const marketEvents = allEvents.filter((e) => e.src === 'market_ws');
                         
-                        // Only process if we have user trade events (rest)
+                        // Debug logging
+                        if (isFirstRun || newEvents.length > 0) {
+                            const srcBreakdown = {
+                                rest_poll: allEvents.filter(e => e.src === 'rest_poll').length,
+                                market_ws: allEvents.filter(e => e.src === 'market_ws').length,
+                                rest_with_tx: restEvents.length,
+                            };
+                            console.log(`   📊 ${slugId}: ${allEvents.length} total events (${srcBreakdown.rest_poll} rest_poll, ${srcBreakdown.market_ws} market_ws, ${srcBreakdown.rest_with_tx} rest with tx)`);
+                        }
+                        
+                        // Process merged trades if we have REST events, but always process prices if we have market events
                         if (restEvents.length > 0) {
-                            const mergedPath = path.join(
-                                mergedDir,
-                                sanitizeFileComponent(user),
-                                `${sanitizeFileComponent(slugId)}.json`
-                            );
+                            // Generate paths for local merged trades file
+                            const mergedDirPath = path.join(mergedDir, sanitizeFileComponent(user));
+                            ensureDirForFile(path.join(mergedDirPath, `${sanitizeFileComponent(slugId)}.json`));
+                            const localMergedPath = path.join(mergedDirPath, `${sanitizeFileComponent(slugId)}.json`);
+                            const r2MergedKey = `merged_trades/${sanitizeFileComponent(user)}/${sanitizeFileComponent(slugId)}.json`;
                             
-                            const existing = loadMergedTrades(mergedPath);
+                            // Load existing merged trades (try local first, then R2)
+                            let existing: MergedTrade[] = [];
+                            if (fs.existsSync(localMergedPath)) {
+                                existing = loadMergedTradesFromLocal(localMergedPath);
+                            } else if (isR2Configured()) {
+                                existing = await loadMergedTrades(r2MergedKey);
+                            }
+                            
                             const merged = mergeTrades(restEvents, marketEvents, existing);
                             
                             // Check if there are actual changes
@@ -737,17 +933,21 @@ const watchAndMerge = async (user: string, dataDir: string, mergedDir: string) =
                             const newMerged = merged.length - previousLength;
                             
                             if (isFirstRun || newMerged > 0 || marketEvents.length > 0) {
-                                // Queue for batched write (include market events for separate prices file)
+                                // Save to local file first
+                                fs.writeFileSync(localMergedPath, JSON.stringify(merged, null, 2) + '\n', 'utf8');
+                                
+                                // Queue for batched write to R2 (include market and rest events for separate prices file)
                                 pendingMerges.set(slugId, {
                                     merged,
                                     restCount: restEvents.length,
                                     marketCount: marketEvents.length,
                                     marketEvents: marketEvents, // For separate prices file
+                                    restEvents: restEvents,     // Include REST poll events in prices file
                                 });
                                 
                                 if (newMerged > 0) {
                                     console.log(
-                                        `[${new Date().toISOString()}] ✅ ${slugId}: +${newMerged} new trade(s) queued (total: ${merged.length})`
+                                        `[${new Date().toISOString()}] ✅ ${slugId}: +${newMerged} new trade(s) saved locally (total: ${merged.length})`
                                     );
                                 }
                             }
@@ -757,17 +957,40 @@ const watchAndMerge = async (user: string, dataDir: string, mergedDir: string) =
                             if (global.gc && allEvents.length > 100000) {
                                 global.gc();
                             }
-                        } else if (isFirstRun) {
-                            console.log(`   ${slugId}: No user trade events found (only ${allEvents.length} total events, ${marketEvents.length} market events)`);
+                        } else if (marketEvents.length > 0) {
+                            // Even if no REST events, still process market events for prices file
+                            const existingPending = pendingMerges.get(slugId);
+                            if (!existingPending || marketEvents.length > 0) {
+                                pendingMerges.set(slugId, {
+                                    merged: existingPending?.merged || [],
+                                    restCount: 0,
+                                    marketCount: marketEvents.length,
+                                    marketEvents: marketEvents,
+                                    restEvents: [],
+                                });
+                                console.log(`   📊 ${slugId}: Processing ${marketEvents.length} market_ws events for prices file (no REST events)`);
+                            }
+                        } else {
+                            // Log why we're not processing
+                            const restEventsWithoutTx = allEvents.filter((e) => e.src === 'rest_poll' && !e.tx);
+                            const restEventsTotal = allEvents.filter((e) => e.src === 'rest_poll');
+                            if (isFirstRun || restEventsTotal.length > 0) {
+                                console.log(`   ⚠️  ${slugId}: No user trade events with tx found (${allEvents.length} total events: ${marketEvents.length} market_ws, ${restEventsTotal.length} rest_poll, ${restEventsWithoutTx.length} rest_poll without tx)`);
+                                // Debug: show sample event structure
+                                if (restEventsTotal.length > 0 && isFirstRun) {
+                                    const sample = restEventsTotal[0];
+                                    console.log(`   🔍 Sample rest_poll event: src=${sample.src}, tx=${sample.tx}, has tx field: ${'tx' in sample}`);
+                                }
+                            }
                         }
                     }
                     
-                    lastLineCounts.set(eventsPath, currentLineCount);
+                    lastLineCounts.set(filePath, currentLineCount);
                 }
             }
             
             // Flush pending writes if enough time has passed
-            flushPendingWrites(isFirstRun);
+            await flushPendingWrites(isFirstRun);
             
             if (isFirstRun) {
                 isFirstRun = false;
@@ -792,6 +1015,7 @@ const main = async () => {
     let userArg: string | undefined;
     let dataDirArg: string | undefined;
     let mergedDirArg: string | undefined;
+    let slugPrefixArg: string | undefined;
     let runLogger = true;
     
     for (let i = 0; i < args.length; i++) {
@@ -811,6 +1035,11 @@ const main = async () => {
             i++;
         } else if (arg.startsWith('--merged-dir=')) {
             mergedDirArg = arg.split('=')[1];
+        } else if ((arg === '--slug-prefix' || arg === '--slugPrefix') && i + 1 < args.length) {
+            slugPrefixArg = args[i + 1];
+            i++;
+        } else if (arg.startsWith('--slug-prefix=') || arg.startsWith('--slugPrefix=')) {
+            slugPrefixArg = arg.split('=')[1];
         } else if (arg === '--no-logger') {
             runLogger = false;
         }
@@ -865,7 +1094,7 @@ const main = async () => {
         process.exit(0);
     });
 
-    await watchAndMerge(user, dataDir, mergedDir);
+    await watchAndMerge(user, dataDir, mergedDir, slugPrefixArg);
 };
 
 main().catch((error) => {
