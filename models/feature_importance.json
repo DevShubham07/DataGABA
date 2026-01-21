@@ -2,57 +2,161 @@
   "outcome": [
     {
       "feature": "is_cheaper_outcome",
-      "importance": 0.4842998063585993
+      "importance": 0.8388970245908512
     },
     {
       "feature": "price",
-      "importance": 0.3527162675462045
-    },
-    {
-      "feature": "usdcSize",
-      "importance": 0.10079925377456765
-    },
-    {
-      "feature": "size",
-      "importance": 0.024816885932344455
+      "importance": 0.14718385309918275
     },
     {
       "feature": "price_distance_from_50",
-      "importance": 0.021259553374278435
+      "importance": 0.004351792288372307
     },
     {
       "feature": "hour",
-      "importance": 0.011627295769298584
+      "importance": 0.0014312304153047462
+    },
+    {
+      "feature": "price_ma10",
+      "importance": 0.001192682803257389
+    },
+    {
+      "feature": "price_ma5",
+      "importance": 0.0010487209612000637
+    },
+    {
+      "feature": "volume_trend",
+      "importance": 0.0008214240377228669
+    },
+    {
+      "feature": "market_hour",
+      "importance": 0.0007820123769298482
+    },
+    {
+      "feature": "price_volatility",
+      "importance": 0.0007146378147583985
+    },
+    {
+      "feature": "usdcSize",
+      "importance": 0.0006046973279807429
+    },
+    {
+      "feature": "size",
+      "importance": 0.0005003316260506359
+    },
+    {
+      "feature": "price_range",
+      "importance": 0.00041009837979773055
+    },
+    {
+      "feature": "price_change_pct",
+      "importance": 0.000348709703980495
+    },
+    {
+      "feature": "hours_until_market",
+      "importance": 0.00032942622569481653
+    },
+    {
+      "feature": "price_diff_from_last",
+      "importance": 0.00026489406181964744
+    },
+    {
+      "feature": "trade_sequence_num",
+      "importance": 0.0002408305181005779
+    },
+    {
+      "feature": "time_since_last_trade",
+      "importance": 0.0002027912527685701
     },
     {
       "feature": "day_of_week",
-      "importance": 0.004480937244707053
+      "importance": 0.00019962390333295223
+    },
+    {
+      "feature": "price_momentum",
+      "importance": 0.00019861679228586613
+    },
+    {
+      "feature": "is_high_volume",
+      "importance": 0.00011138768760478306
+    },
+    {
+      "feature": "is_weekend",
+      "importance": 9.75402284808148e-05
+    },
+    {
+      "feature": "is_business_hours",
+      "importance": 3.007121640915382e-05
+    },
+    {
+      "feature": "price_change_direction",
+      "importance": 2.5228621062384642e-05
+    },
+    {
+      "feature": "outcome_switched",
+      "importance": 1.237406705127364e-05
     }
   ],
   "size": [
     {
-      "feature": "hour",
-      "importance": 0.38672973732833205
+      "feature": "price",
+      "importance": 0.7394065695142176
     },
     {
       "feature": "price_distance_from_50",
-      "importance": 0.29481516220841797
+      "importance": 0.11972801090001516
     },
     {
-      "feature": "outcomeIndex",
-      "importance": 0.1381013759784267
+      "feature": "volume_trend",
+      "importance": 0.029569920258181854
+    },
+    {
+      "feature": "time_since_last_trade",
+      "importance": 0.01688209835359273
+    },
+    {
+      "feature": "price_ma5",
+      "importance": 0.016271664666757932
+    },
+    {
+      "feature": "market_hour",
+      "importance": 0.01606364375815211
     },
     {
       "feature": "day_of_week",
-      "importance": 0.09791491591368721
+      "importance": 0.01559488726491561
     },
     {
-      "feature": "price",
-      "importance": 0.08243665962590294
+      "feature": "hour",
+      "importance": 0.013211158062946723
+    },
+    {
+      "feature": "price_volatility",
+      "importance": 0.01111778888030621
+    },
+    {
+      "feature": "price_momentum",
+      "importance": 0.009986834846266902
+    },
+    {
+      "feature": "is_weekend",
+      "importance": 0.006271275852519577
+    },
+    {
+      "feature": "trade_sequence_num",
+      "importance": 0.0027663280139893225
+    },
+    {
+      "feature": "outcomeIndex",
+      "importance": 0.001776915135919818
     },
     {
       "feature": "is_cheaper_outcome",
-      "importance": 2.14894523304472e-06
+      "importance": 0.0009738025288397048
+    },
+    {
+      "feature": "is_business_hours",
+      "importance": 0.00037910196337922054
     }
   ]
 }

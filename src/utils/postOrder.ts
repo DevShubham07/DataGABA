@@ -1,9 +1,10 @@
 import { ClobClient, OrderType, Side } from '@polymarket/clob-client';
 import { ENV } from '../config/env';
 import { UserActivityInterface, UserPositionInterface } from '../interfaces/User';
-import { getUserActivityModel } from '../models/userHistory';
+// import { getUserActivityModel } from '../models/userHistory';
 import Logger from './logger';
 import { calculateOrderSize, getTradeMultiplier } from '../config/copyStrategy';
+import { getMLAlgorithm, MarketData } from '../services/mlTradingAlgorithm';
 
 const RETRY_LIMIT = ENV.RETRY_LIMIT;
 const COPY_STRATEGY_CONFIG = ENV.COPY_STRATEGY_CONFIG;
@@ -174,6 +175,51 @@ const postOrder = async (
         // Get current position size for position limit checks
         const currentPositionValue = my_position ? my_position.size * my_position.avgPrice : 0;
 
+        // ML Algorithm Decision (optional - can be disabled via env)
+        const mlEnabled = process.env.ML_ALGORITHM_ENABLED !== 'false';
+        let mlDecision = null;
+        
+        if (mlEnabled && trade.price && trade.price > 0 && trade.price < 1) {
+            try {
+                const mlAlgorithm = getMLAlgorithm(true);
+                const marketData: MarketData = {
+                    price: trade.price,
+                    trader_side: trade.side || 'BUY',
+                    trader_outcome: trade.outcome as 'Up' | 'Down' | undefined,
+                    trader_size: trade.size,
+                    trader_usdc_size: trade.usdcSize,
+                    timestamp: trade.timestamp || Math.floor(Date.now() / 1000),
+                    market_slug: trade.slug,
+                    available_balance: my_balance,
+                    current_position_size: currentPositionValue,
+                };
+
+                mlDecision = await mlAlgorithm.shouldExecuteTrade(marketData);
+                
+                Logger.header('🤖 ML ALGORITHM DECISION');
+                Logger.info(`Predicted outcome: ${mlDecision.predicted_outcome || 'N/A'}`);
+                Logger.info(`Confidence: ${(mlDecision.ml_confidence * 100).toFixed(1)}%`);
+                Logger.info(`Recommended size: $${mlDecision.recommended_size_usd.toFixed(2)}`);
+                Logger.info(`Decision: ${mlDecision.execute ? '✅ EXECUTE' : '❌ SKIP'}`);
+                Logger.info(`Reason: ${mlDecision.reason}`);
+
+                // Skip trade if ML algorithm recommends against it
+                if (!mlDecision.execute) {
+                    Logger.warning(`❌ ML algorithm recommends skipping this trade`);
+                    Logger.warning(`Reason: ${mlDecision.reason}`);
+                    await UserActivity.updateOne({ _id: trade._id }, { bot: true, mlSkipped: true });
+                    return;
+                }
+
+                // Use ML recommended size if available and reasonable
+                if (mlDecision.recommended_size_usd > 0 && mlDecision.recommended_size_usd <= my_balance) {
+                    Logger.info(`💡 ML recommends size: $${mlDecision.recommended_size_usd.toFixed(2)}`);
+                }
+            } catch (error) {
+                Logger.warning(`ML algorithm error: ${error}. Proceeding with normal strategy.`);
+            }
+        }
+
         // Use new copy strategy system
         const orderCalc = calculateOrderSize(
             COPY_STRATEGY_CONFIG,
@@ -184,6 +230,20 @@ const postOrder = async (
 
         // Log the calculation reasoning
         Logger.info(`📊 ${orderCalc.reasoning}`);
+
+        // If ML provided recommendation, optionally adjust order size
+        if (mlDecision && mlDecision.recommended_size_usd > 0) {
+            const mlAdjustedSize = Math.min(
+                mlDecision.recommended_size_usd,
+                my_balance * 0.95,
+                orderCalc.finalAmount * 1.5 // Don't exceed 150% of calculated size
+            );
+            
+            if (mlAdjustedSize >= COPY_STRATEGY_CONFIG.minOrderSizeUSD) {
+                Logger.info(`🤖 ML-adjusted size: $${mlAdjustedSize.toFixed(2)} (was $${orderCalc.finalAmount.toFixed(2)})`);
+                orderCalc.finalAmount = mlAdjustedSize;
+            }
+        }
 
         // Check if order should be executed
         if (orderCalc.finalAmount === 0) {

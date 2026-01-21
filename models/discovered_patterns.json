@@ -1,0 +1,70 @@
+{
+  "price_based": {
+    "buy_up_below_50": 14305,
+    "buy_up_above_50": 11129,
+    "buy_down_below_50": 12110,
+    "buy_down_above_50": 13509
+  },
+  "time_based": {
+    "most_active_hours": {
+      "10": 3140,
+      "23": 2970,
+      "8": 2791,
+      "5": 2630,
+      "3": 2607,
+      "2": 2589,
+      "11": 2573,
+      "1": 2484,
+      "13": 2315,
+      "6": 2238
+    }
+  },
+  "size_based": {
+    "mean_size": 4.577865687114428,
+    "median_size": 4.1,
+    "std_size": 3.2366651985822057,
+    "min_size": 0.0013,
+    "max_size": 13.86
+  },
+  "sequential": {
+    "outcome_switches": 13313,
+    "avg_trades_per_market": 587.6022727272727
+  },
+  "clusters": {
+    "cluster_0": {
+      "count": 4299,
+      "avg_price": 0.2713098400471069,
+      "avg_size": 2.1109221470109327,
+      "preferred_outcome": "Up",
+      "avg_hour": 11.138869504535938
+    },
+    "cluster_1": {
+      "count": 12499,
+      "avg_price": 0.506240971540533,
+      "avg_size": 4.6908450996079685,
+      "preferred_outcome": "Down",
+      "avg_hour": 18.35434834786783
+    },
+    "cluster_2": {
+      "count": 9884,
+      "avg_price": 0.806260397722378,
+      "avg_size": 8.348281650748685,
+      "preferred_outcome": "Down",
+      "avg_hour": 10.880311614730878
+    },
+    "cluster_3": {
+      "count": 16268,
+      "avg_price": 0.5046952753854071,
+      "avg_size": 4.508672242746496,
+      "preferred_outcome": "Down",
+      "avg_hour": 5.281411359724613
+    },
+    "cluster_4": {
+      "count": 8759,
+      "avg_price": 0.18195036379034377,
+      "avg_size": 1.501271118164174,
+      "preferred_outcome": "Up",
+      "avg_hour": 10.906610343646536
+    }
+  }
+}
