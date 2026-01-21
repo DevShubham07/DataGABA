@@ -19,7 +19,7 @@ dotenv.config();
 
 const USER_ADDRESS = process.env.USER_ADDRESSES?.split(',')[0] || '0x6031b6eed1c97e853c6e0f03ad3ce3529351f96d';
 const OUTPUT_DIR = path.join(process.cwd(), 'historical_trades');
-const MAX_MARKETS = 100;
+const MAX_MARKETS = 500;
 const DELAY_BETWEEN_REQUESTS_MS = 500; // Rate limiting
 
 // Ensure output directory exists
@@ -30,28 +30,47 @@ if (!fs.existsSync(OUTPUT_DIR)) {
 // Generate Ethereum 1-hour market slugs
 const generateMarketSlugs = (count: number): string[] => {
     const slugs: string[] = [];
-    const now = new Date();
     const monthNames = ['january', 'february', 'march', 'april', 'may', 'june',
                        'july', 'august', 'september', 'october', 'november', 'december'];
     
-    let currentDate = new Date(now);
+    // Start from January 17, 2026, 12 AM ET
+    // Create date for January 17, 2026 at 12:00 AM ET
+    // We'll work with a simple date object and manually calculate ET
+    let year = 2026;
+    let month = 0; // January (0-indexed)
+    let day = 17;
+    let hour = 0; // 12 AM
+    
     let marketsGenerated = 0;
     
-    // Start from current hour and go backwards
+    // Start from January 17, 12 AM and go backwards
     while (marketsGenerated < count) {
-        const month = monthNames[currentDate.getMonth()].toLowerCase();
-        const day = currentDate.getDate();
-        const hour = currentDate.getHours();
+        const monthName = monthNames[month].toLowerCase();
         
         const ampm = hour >= 12 ? 'pm' : 'am';
         const hour12 = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
         
-        const slug = `ethereum-up-or-down-${month}-${day}-${hour12}${ampm}-et`;
+        const slug = `ethereum-up-or-down-${monthName}-${day}-${hour12}${ampm}-et`;
         slugs.push(slug);
         marketsGenerated++;
         
         // Move back 1 hour
-        currentDate.setHours(currentDate.getHours() - 1);
+        hour--;
+        if (hour < 0) {
+            hour = 23;
+            day--;
+            if (day < 1) {
+                // Move to previous month
+                month--;
+                if (month < 0) {
+                    month = 11;
+                    year--;
+                }
+                // Get last day of previous month
+                const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+                day = lastDayOfMonth;
+            }
+        }
     }
     
     return slugs;
@@ -123,6 +142,13 @@ const fetchUserTrades = async (conditionId: string, slug: string): Promise<any[]
     }
 };
 
+// Check if market file already exists
+const marketExists = (slug: string): boolean => {
+    const fileName = `${slug.replace(/[^a-z0-9-]/gi, '_')}.json`;
+    const filePath = path.join(OUTPUT_DIR, fileName);
+    return fs.existsSync(filePath);
+};
+
 // Save trades to file
 const saveTrades = (slug: string, trades: any[]): void => {
     if (trades.length === 0) {
@@ -178,6 +204,13 @@ const main = async () => {
     for (let i = 0; i < slugs.length; i++) {
         const slug = slugs[i];
         console.log(`[${i + 1}/${slugs.length}] Processing: ${slug}`);
+        
+        // Skip if market already exists
+        if (marketExists(slug)) {
+            console.log(`   ⏭️  Skipped (file already exists)\n`);
+            skippedCount++;
+            continue;
+        }
         
         // Fetch conditionId
         const conditionId = await fetchConditionId(slug);

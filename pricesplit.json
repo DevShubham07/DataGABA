@@ -1,0 +1,2019 @@
+{
+  "overall": {
+    "up": 393626.92,
+    "down": 401161.39,
+    "total": 794788.31
+  },
+  "markets": {
+    "ethereum-up-or-down-january-10-10am-et": {
+      "up": 1120.87,
+      "down": 364.66,
+      "total": 1485.53
+    },
+    "ethereum-up-or-down-january-10-10pm-et": {
+      "up": 985.63,
+      "down": 590.08,
+      "total": 1575.72
+    },
+    "ethereum-up-or-down-january-10-11am-et": {
+      "up": 976.36,
+      "down": 1109.45,
+      "total": 2085.82
+    },
+    "ethereum-up-or-down-january-10-11pm-et": {
+      "up": 1002.37,
+      "down": 1167.58,
+      "total": 2169.95
+    },
+    "ethereum-up-or-down-january-10-12am-et": {
+      "up": 285.36,
+      "down": 140.02,
+      "total": 425.38
+    },
+    "ethereum-up-or-down-january-10-12pm-et": {
+      "up": 1448.37,
+      "down": 703.49,
+      "total": 2151.87
+    },
+    "ethereum-up-or-down-january-10-1am-et": {
+      "up": 792.84,
+      "down": 660.0,
+      "total": 1452.84
+    },
+    "ethereum-up-or-down-january-10-1pm-et": {
+      "up": 1366.54,
+      "down": 1477.31,
+      "total": 2843.85
+    },
+    "ethereum-up-or-down-january-10-2am-et": {
+      "up": 953.87,
+      "down": 340.53,
+      "total": 1294.39
+    },
+    "ethereum-up-or-down-january-10-2pm-et": {
+      "up": 1054.19,
+      "down": 1649.85,
+      "total": 2704.04
+    },
+    "ethereum-up-or-down-january-10-3am-et": {
+      "up": 306.25,
+      "down": 858.7,
+      "total": 1164.94
+    },
+    "ethereum-up-or-down-january-10-3pm-et": {
+      "up": 907.04,
+      "down": 1267.4,
+      "total": 2174.44
+    },
+    "ethereum-up-or-down-january-10-4pm-et": {
+      "up": 919.06,
+      "down": 1512.06,
+      "total": 2431.12
+    },
+    "ethereum-up-or-down-january-10-5am-et": {
+      "up": 800.71,
+      "down": 619.39,
+      "total": 1420.09
+    },
+    "ethereum-up-or-down-january-10-5pm-et": {
+      "up": 990.69,
+      "down": 1081.15,
+      "total": 2071.84
+    },
+    "ethereum-up-or-down-january-10-6am-et": {
+      "up": 171.37,
+      "down": 622.77,
+      "total": 794.14
+    },
+    "ethereum-up-or-down-january-10-6pm-et": {
+      "up": 863.15,
+      "down": 318.88,
+      "total": 1182.03
+    },
+    "ethereum-up-or-down-january-10-7am-et": {
+      "up": 1106.65,
+      "down": 712.17,
+      "total": 1818.81
+    },
+    "ethereum-up-or-down-january-10-7pm-et": {
+      "up": 1304.92,
+      "down": 797.19,
+      "total": 2102.11
+    },
+    "ethereum-up-or-down-january-10-8am-et": {
+      "up": 332.17,
+      "down": 812.62,
+      "total": 1144.79
+    },
+    "ethereum-up-or-down-january-10-8pm-et": {
+      "up": 1137.91,
+      "down": 1332.76,
+      "total": 2470.67
+    },
+    "ethereum-up-or-down-january-10-9am-et": {
+      "up": 557.65,
+      "down": 930.68,
+      "total": 1488.34
+    },
+    "ethereum-up-or-down-january-10-9pm-et": {
+      "up": 1055.37,
+      "down": 1560.83,
+      "total": 2616.2
+    },
+    "ethereum-up-or-down-january-11-10am-et": {
+      "up": 1323.11,
+      "down": 2442.25,
+      "total": 3765.36
+    },
+    "ethereum-up-or-down-january-11-10pm-et": {
+      "up": 1648.61,
+      "down": 1252.87,
+      "total": 2901.48
+    },
+    "ethereum-up-or-down-january-11-11am-et": {
+      "up": 1400.82,
+      "down": 691.13,
+      "total": 2091.96
+    },
+    "ethereum-up-or-down-january-11-11pm-et": {
+      "up": 1133.49,
+      "down": 330.68,
+      "total": 1464.17
+    },
+    "ethereum-up-or-down-january-11-12am-et": {
+      "up": 1510.31,
+      "down": 1136.85,
+      "total": 2647.15
+    },
+    "ethereum-up-or-down-january-11-12pm-et": {
+      "up": 712.74,
+      "down": 991.9,
+      "total": 1704.64
+    },
+    "ethereum-up-or-down-january-11-1am-et": {
+      "up": 669.72,
+      "down": 823.82,
+      "total": 1493.54
+    },
+    "ethereum-up-or-down-january-11-1pm-et": {
+      "up": 681.93,
+      "down": 1233.66,
+      "total": 1915.58
+    },
+    "ethereum-up-or-down-january-11-2am-et": {
+      "up": 452.8,
+      "down": 1047.5,
+      "total": 1500.3
+    },
+    "ethereum-up-or-down-january-11-2pm-et": {
+      "up": 626.03,
+      "down": 976.98,
+      "total": 1603.02
+    },
+    "ethereum-up-or-down-january-11-3am-et": {
+      "up": 1011.42,
+      "down": 515.56,
+      "total": 1526.98
+    },
+    "ethereum-up-or-down-january-11-3pm-et": {
+      "up": 194.6,
+      "down": 680.33,
+      "total": 874.92
+    },
+    "ethereum-up-or-down-january-11-4am-et": {
+      "up": 1327.62,
+      "down": 1037.25,
+      "total": 2364.87
+    },
+    "ethereum-up-or-down-january-11-4pm-et": {
+      "up": 859.17,
+      "down": 934.48,
+      "total": 1793.65
+    },
+    "ethereum-up-or-down-january-11-5am-et": {
+      "up": 1425.21,
+      "down": 765.09,
+      "total": 2190.31
+    },
+    "ethereum-up-or-down-january-11-5pm-et": {
+      "up": 160.31,
+      "down": 628.01,
+      "total": 788.32
+    },
+    "ethereum-up-or-down-january-11-6am-et": {
+      "up": 463.36,
+      "down": 999.57,
+      "total": 1462.93
+    },
+    "ethereum-up-or-down-january-11-6pm-et": {
+      "up": 1083.8,
+      "down": 1100.04,
+      "total": 2183.84
+    },
+    "ethereum-up-or-down-january-11-7am-et": {
+      "up": 1180.53,
+      "down": 386.89,
+      "total": 1567.42
+    },
+    "ethereum-up-or-down-january-11-7pm-et": {
+      "up": 816.44,
+      "down": 1131.72,
+      "total": 1948.16
+    },
+    "ethereum-up-or-down-january-11-8am-et": {
+      "up": 849.66,
+      "down": 1523.15,
+      "total": 2372.82
+    },
+    "ethereum-up-or-down-january-11-8pm-et": {
+      "up": 1981.0,
+      "down": 1157.76,
+      "total": 3138.77
+    },
+    "ethereum-up-or-down-january-11-9am-et": {
+      "up": 1345.72,
+      "down": 434.94,
+      "total": 1780.66
+    },
+    "ethereum-up-or-down-january-11-9pm-et": {
+      "up": 771.61,
+      "down": 230.7,
+      "total": 1002.31
+    },
+    "ethereum-up-or-down-january-12-10am-et": {
+      "up": 817.51,
+      "down": 479.01,
+      "total": 1296.52
+    },
+    "ethereum-up-or-down-january-12-10pm-et": {
+      "up": 635.99,
+      "down": 204.01,
+      "total": 840.0
+    },
+    "ethereum-up-or-down-january-12-11am-et": {
+      "up": 1444.71,
+      "down": 1316.08,
+      "total": 2760.79
+    },
+    "ethereum-up-or-down-january-12-11pm-et": {
+      "up": 1167.73,
+      "down": 926.95,
+      "total": 2094.67
+    },
+    "ethereum-up-or-down-january-12-12am-et": {
+      "up": 1348.43,
+      "down": 1038.16,
+      "total": 2386.59
+    },
+    "ethereum-up-or-down-january-12-12pm-et": {
+      "up": 268.68,
+      "down": 707.98,
+      "total": 976.66
+    },
+    "ethereum-up-or-down-january-12-1am-et": {
+      "up": 531.16,
+      "down": 739.88,
+      "total": 1271.04
+    },
+    "ethereum-up-or-down-january-12-1pm-et": {
+      "up": 1187.54,
+      "down": 864.4,
+      "total": 2051.95
+    },
+    "ethereum-up-or-down-january-12-2am-et": {
+      "up": 528.37,
+      "down": 725.43,
+      "total": 1253.8
+    },
+    "ethereum-up-or-down-january-12-2pm-et": {
+      "up": 581.86,
+      "down": 433.65,
+      "total": 1015.52
+    },
+    "ethereum-up-or-down-january-12-3am-et": {
+      "up": 424.71,
+      "down": 692.19,
+      "total": 1116.9
+    },
+    "ethereum-up-or-down-january-12-3pm-et": {
+      "up": 452.36,
+      "down": 928.13,
+      "total": 1380.49
+    },
+    "ethereum-up-or-down-january-12-4am-et": {
+      "up": 1110.4,
+      "down": 461.72,
+      "total": 1572.12
+    },
+    "ethereum-up-or-down-january-12-4pm-et": {
+      "up": 920.06,
+      "down": 1461.0,
+      "total": 2381.06
+    },
+    "ethereum-up-or-down-january-12-5am-et": {
+      "up": 488.82,
+      "down": 689.91,
+      "total": 1178.73
+    },
+    "ethereum-up-or-down-january-12-5pm-et": {
+      "up": 1084.31,
+      "down": 229.66,
+      "total": 1313.97
+    },
+    "ethereum-up-or-down-january-12-6am-et": {
+      "up": 770.83,
+      "down": 258.57,
+      "total": 1029.4
+    },
+    "ethereum-up-or-down-january-12-6pm-et": {
+      "up": 1033.63,
+      "down": 1350.38,
+      "total": 2384.01
+    },
+    "ethereum-up-or-down-january-12-7am-et": {
+      "up": 1464.8,
+      "down": 724.83,
+      "total": 2189.64
+    },
+    "ethereum-up-or-down-january-12-7pm-et": {
+      "up": 670.58,
+      "down": 304.25,
+      "total": 974.83
+    },
+    "ethereum-up-or-down-january-12-8am-et": {
+      "up": 599.58,
+      "down": 1447.98,
+      "total": 2047.57
+    },
+    "ethereum-up-or-down-january-12-8pm-et": {
+      "up": 466.69,
+      "down": 645.61,
+      "total": 1112.31
+    },
+    "ethereum-up-or-down-january-12-9am-et": {
+      "up": 1429.44,
+      "down": 2750.99,
+      "total": 4180.43
+    },
+    "ethereum-up-or-down-january-12-9pm-et": {
+      "up": 1222.07,
+      "down": 353.66,
+      "total": 1575.73
+    },
+    "ethereum-up-or-down-january-13-10am-et": {
+      "up": 777.61,
+      "down": 606.12,
+      "total": 1383.74
+    },
+    "ethereum-up-or-down-january-13-10pm-et": {
+      "up": 816.94,
+      "down": 553.19,
+      "total": 1370.13
+    },
+    "ethereum-up-or-down-january-13-11am-et": {
+      "up": 1893.07,
+      "down": 1749.33,
+      "total": 3642.39
+    },
+    "ethereum-up-or-down-january-13-11pm-et": {
+      "up": 761.1,
+      "down": 1527.85,
+      "total": 2288.95
+    },
+    "ethereum-up-or-down-january-13-12am-et": {
+      "up": 768.41,
+      "down": 263.06,
+      "total": 1031.47
+    },
+    "ethereum-up-or-down-january-13-12pm-et": {
+      "up": 1597.1,
+      "down": 1522.09,
+      "total": 3119.19
+    },
+    "ethereum-up-or-down-january-13-1am-et": {
+      "up": 939.86,
+      "down": 1135.66,
+      "total": 2075.52
+    },
+    "ethereum-up-or-down-january-13-1pm-et": {
+      "up": 888.45,
+      "down": 349.19,
+      "total": 1237.64
+    },
+    "ethereum-up-or-down-january-13-2am-et": {
+      "up": 266.05,
+      "down": 952.64,
+      "total": 1218.69
+    },
+    "ethereum-up-or-down-january-13-2pm-et": {
+      "up": 1528.49,
+      "down": 1086.83,
+      "total": 2615.32
+    },
+    "ethereum-up-or-down-january-13-3am-et": {
+      "up": 752.24,
+      "down": 264.31,
+      "total": 1016.55
+    },
+    "ethereum-up-or-down-january-13-3pm-et": {
+      "up": 794.1,
+      "down": 1378.25,
+      "total": 2172.35
+    },
+    "ethereum-up-or-down-january-13-4am-et": {
+      "up": 2267.43,
+      "down": 1395.42,
+      "total": 3662.85
+    },
+    "ethereum-up-or-down-january-13-4pm-et": {
+      "up": 1786.59,
+      "down": 769.65,
+      "total": 2556.24
+    },
+    "ethereum-up-or-down-january-13-5am-et": {
+      "up": 670.72,
+      "down": 892.99,
+      "total": 1563.71
+    },
+    "ethereum-up-or-down-january-13-5pm-et": {
+      "up": 1551.16,
+      "down": 234.34,
+      "total": 1785.5
+    },
+    "ethereum-up-or-down-january-13-6am-et": {
+      "up": 1581.01,
+      "down": 1598.73,
+      "total": 3179.74
+    },
+    "ethereum-up-or-down-january-13-6pm-et": {
+      "up": 1153.15,
+      "down": 2240.07,
+      "total": 3393.21
+    },
+    "ethereum-up-or-down-january-13-7am-et": {
+      "up": 1758.57,
+      "down": 1423.59,
+      "total": 3182.16
+    },
+    "ethereum-up-or-down-january-13-7pm-et": {
+      "up": 1497.0,
+      "down": 1990.5,
+      "total": 3487.5
+    },
+    "ethereum-up-or-down-january-13-8am-et": {
+      "up": 3249.26,
+      "down": 1237.08,
+      "total": 4486.35
+    },
+    "ethereum-up-or-down-january-13-8pm-et": {
+      "up": 1615.45,
+      "down": 717.81,
+      "total": 2333.26
+    },
+    "ethereum-up-or-down-january-13-9am-et": {
+      "up": 1826.28,
+      "down": 958.94,
+      "total": 2785.22
+    },
+    "ethereum-up-or-down-january-13-9pm-et": {
+      "up": 1395.3,
+      "down": 1151.6,
+      "total": 2546.9
+    },
+    "ethereum-up-or-down-january-14-10am-et": {
+      "up": 854.46,
+      "down": 1185.33,
+      "total": 2039.79
+    },
+    "ethereum-up-or-down-january-14-10pm-et": {
+      "up": 661.93,
+      "down": 1144.66,
+      "total": 1806.59
+    },
+    "ethereum-up-or-down-january-14-11am-et": {
+      "up": 932.85,
+      "down": 298.42,
+      "total": 1231.27
+    },
+    "ethereum-up-or-down-january-14-11pm-et": {
+      "up": 754.96,
+      "down": 279.07,
+      "total": 1034.03
+    },
+    "ethereum-up-or-down-january-14-12am-et": {
+      "up": 532.71,
+      "down": 1298.08,
+      "total": 1830.79
+    },
+    "ethereum-up-or-down-january-14-12pm-et": {
+      "up": 684.05,
+      "down": 945.04,
+      "total": 1629.09
+    },
+    "ethereum-up-or-down-january-14-1am-et": {
+      "up": 1099.72,
+      "down": 1398.71,
+      "total": 2498.44
+    },
+    "ethereum-up-or-down-january-14-1pm-et": {
+      "up": 794.41,
+      "down": 1321.3,
+      "total": 2115.72
+    },
+    "ethereum-up-or-down-january-14-2am-et": {
+      "up": 1533.37,
+      "down": 1267.74,
+      "total": 2801.11
+    },
+    "ethereum-up-or-down-january-14-2pm-et": {
+      "up": 989.45,
+      "down": 327.66,
+      "total": 1317.11
+    },
+    "ethereum-up-or-down-january-14-3am-et": {
+      "up": 1228.08,
+      "down": 1168.06,
+      "total": 2396.15
+    },
+    "ethereum-up-or-down-january-14-3pm-et": {
+      "up": 1196.68,
+      "down": 688.44,
+      "total": 1885.12
+    },
+    "ethereum-up-or-down-january-14-4am-et": {
+      "up": 1698.27,
+      "down": 872.86,
+      "total": 2571.12
+    },
+    "ethereum-up-or-down-january-14-4pm-et": {
+      "up": 295.88,
+      "down": 895.4,
+      "total": 1191.28
+    },
+    "ethereum-up-or-down-january-14-5am-et": {
+      "up": 730.27,
+      "down": 1931.46,
+      "total": 2661.73
+    },
+    "ethereum-up-or-down-january-14-5pm-et": {
+      "up": 271.83,
+      "down": 866.23,
+      "total": 1138.06
+    },
+    "ethereum-up-or-down-january-14-6am-et": {
+      "up": 346.45,
+      "down": 1287.13,
+      "total": 1633.58
+    },
+    "ethereum-up-or-down-january-14-6pm-et": {
+      "up": 1223.49,
+      "down": 349.56,
+      "total": 1573.06
+    },
+    "ethereum-up-or-down-january-14-7am-et": {
+      "up": 1247.7,
+      "down": 521.19,
+      "total": 1768.89
+    },
+    "ethereum-up-or-down-january-14-7pm-et": {
+      "up": 279.28,
+      "down": 763.46,
+      "total": 1042.74
+    },
+    "ethereum-up-or-down-january-14-8am-et": {
+      "up": 2133.8,
+      "down": 1344.61,
+      "total": 3478.41
+    },
+    "ethereum-up-or-down-january-14-8pm-et": {
+      "up": 973.09,
+      "down": 1293.19,
+      "total": 2266.28
+    },
+    "ethereum-up-or-down-january-14-9am-et": {
+      "up": 2017.43,
+      "down": 833.03,
+      "total": 2850.46
+    },
+    "ethereum-up-or-down-january-14-9pm-et": {
+      "up": 635.19,
+      "down": 1018.8,
+      "total": 1653.99
+    },
+    "ethereum-up-or-down-january-15-10am-et": {
+      "up": 1055.2,
+      "down": 1211.76,
+      "total": 2266.96
+    },
+    "ethereum-up-or-down-january-15-10pm-et": {
+      "up": 486.58,
+      "down": 763.0,
+      "total": 1249.58
+    },
+    "ethereum-up-or-down-january-15-11am-et": {
+      "up": 826.34,
+      "down": 1304.17,
+      "total": 2130.5
+    },
+    "ethereum-up-or-down-january-15-11pm-et": {
+      "up": 1275.49,
+      "down": 1409.3,
+      "total": 2684.79
+    },
+    "ethereum-up-or-down-january-15-12am-et": {
+      "up": 1386.95,
+      "down": 809.76,
+      "total": 2196.71
+    },
+    "ethereum-up-or-down-january-15-12pm-et": {
+      "up": 1138.35,
+      "down": 1650.98,
+      "total": 2789.33
+    },
+    "ethereum-up-or-down-january-15-1am-et": {
+      "up": 1566.47,
+      "down": 597.01,
+      "total": 2163.47
+    },
+    "ethereum-up-or-down-january-15-1pm-et": {
+      "up": 943.72,
+      "down": 1418.8,
+      "total": 2362.52
+    },
+    "ethereum-up-or-down-january-15-2am-et": {
+      "up": 1417.94,
+      "down": 532.49,
+      "total": 1950.43
+    },
+    "ethereum-up-or-down-january-15-2pm-et": {
+      "up": 1122.66,
+      "down": 922.25,
+      "total": 2044.91
+    },
+    "ethereum-up-or-down-january-15-3am-et": {
+      "up": 1110.48,
+      "down": 1638.34,
+      "total": 2748.82
+    },
+    "ethereum-up-or-down-january-15-3pm-et": {
+      "up": 536.45,
+      "down": 936.94,
+      "total": 1473.38
+    },
+    "ethereum-up-or-down-january-15-4am-et": {
+      "up": 1272.9,
+      "down": 896.75,
+      "total": 2169.65
+    },
+    "ethereum-up-or-down-january-15-4pm-et": {
+      "up": 687.96,
+      "down": 280.33,
+      "total": 968.29
+    },
+    "ethereum-up-or-down-january-15-5am-et": {
+      "up": 1528.11,
+      "down": 1425.47,
+      "total": 2953.58
+    },
+    "ethereum-up-or-down-january-15-5pm-et": {
+      "up": 1267.04,
+      "down": 575.4,
+      "total": 1842.45
+    },
+    "ethereum-up-or-down-january-15-6am-et": {
+      "up": 580.81,
+      "down": 1238.7,
+      "total": 1819.51
+    },
+    "ethereum-up-or-down-january-15-6pm-et": {
+      "up": 1230.57,
+      "down": 852.69,
+      "total": 2083.27
+    },
+    "ethereum-up-or-down-january-15-7am-et": {
+      "up": 1044.89,
+      "down": 982.55,
+      "total": 2027.43
+    },
+    "ethereum-up-or-down-january-15-7pm-et": {
+      "up": 1273.76,
+      "down": 693.43,
+      "total": 1967.19
+    },
+    "ethereum-up-or-down-january-15-8am-et": {
+      "up": 1217.97,
+      "down": 1183.91,
+      "total": 2401.88
+    },
+    "ethereum-up-or-down-january-15-8pm-et": {
+      "up": 1056.51,
+      "down": 1802.56,
+      "total": 2859.07
+    },
+    "ethereum-up-or-down-january-15-9am-et": {
+      "up": 1128.69,
+      "down": 1308.79,
+      "total": 2437.48
+    },
+    "ethereum-up-or-down-january-15-9pm-et": {
+      "up": 280.47,
+      "down": 1440.7,
+      "total": 1721.17
+    },
+    "ethereum-up-or-down-january-16-10am-et": {
+      "up": 1323.78,
+      "down": 1633.9,
+      "total": 2957.68
+    },
+    "ethereum-up-or-down-january-16-10pm-et": {
+      "up": 769.86,
+      "down": 1691.36,
+      "total": 2461.22
+    },
+    "ethereum-up-or-down-january-16-11am-et": {
+      "up": 1133.13,
+      "down": 550.61,
+      "total": 1683.74
+    },
+    "ethereum-up-or-down-january-16-11pm-et": {
+      "up": 879.68,
+      "down": 1482.47,
+      "total": 2362.15
+    },
+    "ethereum-up-or-down-january-16-12am-et": {
+      "up": 1145.68,
+      "down": 510.45,
+      "total": 1656.14
+    },
+    "ethereum-up-or-down-january-16-12pm-et": {
+      "up": 1278.41,
+      "down": 1301.32,
+      "total": 2579.73
+    },
+    "ethereum-up-or-down-january-16-1am-et": {
+      "up": 1140.79,
+      "down": 833.97,
+      "total": 1974.75
+    },
+    "ethereum-up-or-down-january-16-1pm-et": {
+      "up": 1108.83,
+      "down": 1261.66,
+      "total": 2370.49
+    },
+    "ethereum-up-or-down-january-16-2pm-et": {
+      "up": 702.74,
+      "down": 1617.92,
+      "total": 2320.66
+    },
+    "ethereum-up-or-down-january-16-3am-et": {
+      "up": 1050.11,
+      "down": 229.94,
+      "total": 1280.06
+    },
+    "ethereum-up-or-down-january-16-3pm-et": {
+      "up": 1192.83,
+      "down": 854.81,
+      "total": 2047.64
+    },
+    "ethereum-up-or-down-january-16-4am-et": {
+      "up": 756.59,
+      "down": 1483.01,
+      "total": 2239.6
+    },
+    "ethereum-up-or-down-january-16-4pm-et": {
+      "up": 1130.05,
+      "down": 753.27,
+      "total": 1883.32
+    },
+    "ethereum-up-or-down-january-16-5am-et": {
+      "up": 709.85,
+      "down": 1649.79,
+      "total": 2359.64
+    },
+    "ethereum-up-or-down-january-16-5pm-et": {
+      "up": 653.77,
+      "down": 1803.06,
+      "total": 2456.83
+    },
+    "ethereum-up-or-down-january-16-6am-et": {
+      "up": 1849.78,
+      "down": 1116.77,
+      "total": 2966.55
+    },
+    "ethereum-up-or-down-january-16-6pm-et": {
+      "up": 1709.28,
+      "down": 937.74,
+      "total": 2647.02
+    },
+    "ethereum-up-or-down-january-16-7am-et": {
+      "up": 1322.24,
+      "down": 460.34,
+      "total": 1782.59
+    },
+    "ethereum-up-or-down-january-16-7pm-et": {
+      "up": 579.66,
+      "down": 1317.17,
+      "total": 1896.83
+    },
+    "ethereum-up-or-down-january-16-8am-et": {
+      "up": 1082.04,
+      "down": 1899.82,
+      "total": 2981.86
+    },
+    "ethereum-up-or-down-january-16-8pm-et": {
+      "up": 1100.13,
+      "down": 1483.47,
+      "total": 2583.6
+    },
+    "ethereum-up-or-down-january-16-9am-et": {
+      "up": 2359.89,
+      "down": 2554.35,
+      "total": 4914.24
+    },
+    "ethereum-up-or-down-january-16-9pm-et": {
+      "up": 699.63,
+      "down": 1753.79,
+      "total": 2453.42
+    },
+    "ethereum-up-or-down-january-17-10pm-et": {
+      "up": 1036.27,
+      "down": 409.1,
+      "total": 1445.38
+    },
+    "ethereum-up-or-down-january-17-11am-et": {
+      "up": 533.91,
+      "down": 1447.58,
+      "total": 1981.49
+    },
+    "ethereum-up-or-down-january-17-11pm-et": {
+      "up": 581.06,
+      "down": 1305.42,
+      "total": 1886.48
+    },
+    "ethereum-up-or-down-january-17-12am-et": {
+      "up": 1532.95,
+      "down": 2138.43,
+      "total": 3671.38
+    },
+    "ethereum-up-or-down-january-17-12pm-et": {
+      "up": 1682.78,
+      "down": 834.66,
+      "total": 2517.44
+    },
+    "ethereum-up-or-down-january-17-1pm-et": {
+      "up": 1642.87,
+      "down": 2276.58,
+      "total": 3919.45
+    },
+    "ethereum-up-or-down-january-17-2pm-et": {
+      "up": 1857.91,
+      "down": 1938.62,
+      "total": 3796.54
+    },
+    "ethereum-up-or-down-january-17-3pm-et": {
+      "up": 1914.89,
+      "down": 1145.12,
+      "total": 3060.01
+    },
+    "ethereum-up-or-down-january-17-4pm-et": {
+      "up": 672.62,
+      "down": 1893.93,
+      "total": 2566.55
+    },
+    "ethereum-up-or-down-january-17-5pm-et": {
+      "up": 543.44,
+      "down": 1751.45,
+      "total": 2294.89
+    },
+    "ethereum-up-or-down-january-17-6pm-et": {
+      "up": 1453.97,
+      "down": 356.5,
+      "total": 1810.47
+    },
+    "ethereum-up-or-down-january-17-7pm-et": {
+      "up": 1975.71,
+      "down": 1443.85,
+      "total": 3419.56
+    },
+    "ethereum-up-or-down-january-17-8pm-et": {
+      "up": 1379.73,
+      "down": 2110.06,
+      "total": 3489.79
+    },
+    "ethereum-up-or-down-january-17-9pm-et": {
+      "up": 1262.27,
+      "down": 1261.63,
+      "total": 2523.89
+    },
+    "ethereum-up-or-down-january-18-10am-et": {
+      "up": 1110.95,
+      "down": 510.39,
+      "total": 1621.33
+    },
+    "ethereum-up-or-down-january-18-10pm-et": {
+      "up": 2518.45,
+      "down": 1559.17,
+      "total": 4077.62
+    },
+    "ethereum-up-or-down-january-18-11am-et": {
+      "up": 2588.57,
+      "down": 1840.86,
+      "total": 4429.43
+    },
+    "ethereum-up-or-down-january-18-11pm-et": {
+      "up": 2322.92,
+      "down": 2079.78,
+      "total": 4402.69
+    },
+    "ethereum-up-or-down-january-18-12am-et": {
+      "up": 2820.06,
+      "down": 1409.16,
+      "total": 4229.21
+    },
+    "ethereum-up-or-down-january-18-12pm-et": {
+      "up": 3284.22,
+      "down": 1294.22,
+      "total": 4578.44
+    },
+    "ethereum-up-or-down-january-18-1am-et": {
+      "up": 739.61,
+      "down": 1636.51,
+      "total": 2376.12
+    },
+    "ethereum-up-or-down-january-18-1pm-et": {
+      "up": 2042.43,
+      "down": 2573.62,
+      "total": 4616.05
+    },
+    "ethereum-up-or-down-january-18-2am-et": {
+      "up": 257.54,
+      "down": 923.5,
+      "total": 1181.04
+    },
+    "ethereum-up-or-down-january-18-2pm-et": {
+      "up": 585.93,
+      "down": 1906.99,
+      "total": 2492.92
+    },
+    "ethereum-up-or-down-january-18-3am-et": {
+      "up": 1778.36,
+      "down": 1274.2,
+      "total": 3052.56
+    },
+    "ethereum-up-or-down-january-18-3pm-et": {
+      "up": 1533.2,
+      "down": 1871.09,
+      "total": 3404.29
+    },
+    "ethereum-up-or-down-january-18-4am-et": {
+      "up": 1747.8,
+      "down": 611.08,
+      "total": 2358.89
+    },
+    "ethereum-up-or-down-january-18-4pm-et": {
+      "up": 2073.35,
+      "down": 1770.4,
+      "total": 3843.75
+    },
+    "ethereum-up-or-down-january-18-5am-et": {
+      "up": 1457.76,
+      "down": 2244.46,
+      "total": 3702.22
+    },
+    "ethereum-up-or-down-january-18-5pm-et": {
+      "up": 1560.86,
+      "down": 490.93,
+      "total": 2051.78
+    },
+    "ethereum-up-or-down-january-18-6am-et": {
+      "up": 377.12,
+      "down": 1456.89,
+      "total": 1834.01
+    },
+    "ethereum-up-or-down-january-18-6pm-et": {
+      "up": 354.5,
+      "down": 1755.5,
+      "total": 2110.0
+    },
+    "ethereum-up-or-down-january-18-7am-et": {
+      "up": 1524.95,
+      "down": 1108.71,
+      "total": 2633.66
+    },
+    "ethereum-up-or-down-january-18-7pm-et": {
+      "up": 745.19,
+      "down": 1957.03,
+      "total": 2702.22
+    },
+    "ethereum-up-or-down-january-18-8am-et": {
+      "up": 1225.07,
+      "down": 1936.78,
+      "total": 3161.85
+    },
+    "ethereum-up-or-down-january-18-8pm-et": {
+      "up": 1069.7,
+      "down": 1154.04,
+      "total": 2223.74
+    },
+    "ethereum-up-or-down-january-18-9pm-et": {
+      "up": 1307.14,
+      "down": 927.27,
+      "total": 2234.42
+    },
+    "ethereum-up-or-down-january-19-10am-et": {
+      "up": 1743.07,
+      "down": 1118.6,
+      "total": 2861.67
+    },
+    "ethereum-up-or-down-january-19-10pm-et": {
+      "up": 530.41,
+      "down": 1353.8,
+      "total": 1884.22
+    },
+    "ethereum-up-or-down-january-19-11am-et": {
+      "up": 1524.95,
+      "down": 934.67,
+      "total": 2459.61
+    },
+    "ethereum-up-or-down-january-19-11pm-et": {
+      "up": 906.41,
+      "down": 1795.56,
+      "total": 2701.97
+    },
+    "ethereum-up-or-down-january-19-12am-et": {
+      "up": 961.81,
+      "down": 3947.32,
+      "total": 4909.13
+    },
+    "ethereum-up-or-down-january-19-12pm-et": {
+      "up": 832.87,
+      "down": 1492.81,
+      "total": 2325.68
+    },
+    "ethereum-up-or-down-january-19-1am-et": {
+      "up": 1133.9,
+      "down": 3948.86,
+      "total": 5082.77
+    },
+    "ethereum-up-or-down-january-19-1pm-et": {
+      "up": 327.58,
+      "down": 1209.1,
+      "total": 1536.68
+    },
+    "ethereum-up-or-down-january-19-2am-et": {
+      "up": 3717.97,
+      "down": 1166.84,
+      "total": 4884.81
+    },
+    "ethereum-up-or-down-january-19-2pm-et": {
+      "up": 1290.44,
+      "down": 422.69,
+      "total": 1713.13
+    },
+    "ethereum-up-or-down-january-19-3am-et": {
+      "up": 2877.26,
+      "down": 2299.37,
+      "total": 5176.63
+    },
+    "ethereum-up-or-down-january-19-3pm-et": {
+      "up": 1415.99,
+      "down": 1477.18,
+      "total": 2893.17
+    },
+    "ethereum-up-or-down-january-19-4am-et": {
+      "up": 988.15,
+      "down": 1963.33,
+      "total": 2951.48
+    },
+    "ethereum-up-or-down-january-19-4pm-et": {
+      "up": 1371.72,
+      "down": 1266.49,
+      "total": 2638.21
+    },
+    "ethereum-up-or-down-january-19-5am-et": {
+      "up": 2521.61,
+      "down": 1482.69,
+      "total": 4004.29
+    },
+    "ethereum-up-or-down-january-19-5pm-et": {
+      "up": 410.04,
+      "down": 1312.17,
+      "total": 1722.21
+    },
+    "ethereum-up-or-down-january-19-6am-et": {
+      "up": 1142.35,
+      "down": 548.11,
+      "total": 1690.46
+    },
+    "ethereum-up-or-down-january-19-6pm-et": {
+      "up": 1720.44,
+      "down": 2049.33,
+      "total": 3769.77
+    },
+    "ethereum-up-or-down-january-19-7am-et": {
+      "up": 1342.02,
+      "down": 689.19,
+      "total": 2031.22
+    },
+    "ethereum-up-or-down-january-19-7pm-et": {
+      "up": 1398.97,
+      "down": 1879.94,
+      "total": 3278.91
+    },
+    "ethereum-up-or-down-january-19-8am-et": {
+      "up": 250.3,
+      "down": 1091.83,
+      "total": 1342.14
+    },
+    "ethereum-up-or-down-january-19-8pm-et": {
+      "up": 1236.13,
+      "down": 674.85,
+      "total": 1910.99
+    },
+    "ethereum-up-or-down-january-19-9am-et": {
+      "up": 925.54,
+      "down": 1775.64,
+      "total": 2701.18
+    },
+    "ethereum-up-or-down-january-19-9pm-et": {
+      "up": 1427.63,
+      "down": 1785.29,
+      "total": 3212.92
+    },
+    "ethereum-up-or-down-january-20-10am-et": {
+      "up": 894.06,
+      "down": 2515.73,
+      "total": 3409.78
+    },
+    "ethereum-up-or-down-january-20-10pm-et": {
+      "up": 1330.23,
+      "down": 411.72,
+      "total": 1741.96
+    },
+    "ethereum-up-or-down-january-20-11am-et": {
+      "up": 858.57,
+      "down": 1124.21,
+      "total": 1982.78
+    },
+    "ethereum-up-or-down-january-20-11pm-et": {
+      "up": 1757.22,
+      "down": 1841.45,
+      "total": 3598.67
+    },
+    "ethereum-up-or-down-january-20-12am-et": {
+      "up": 1284.01,
+      "down": 1950.02,
+      "total": 3234.03
+    },
+    "ethereum-up-or-down-january-20-12pm-et": {
+      "up": 769.05,
+      "down": 1287.83,
+      "total": 2056.88
+    },
+    "ethereum-up-or-down-january-20-1am-et": {
+      "up": 194.17,
+      "down": 924.35,
+      "total": 1118.52
+    },
+    "ethereum-up-or-down-january-20-1pm-et": {
+      "up": 689.55,
+      "down": 846.24,
+      "total": 1535.79
+    },
+    "ethereum-up-or-down-january-20-2am-et": {
+      "up": 1245.81,
+      "down": 486.87,
+      "total": 1732.68
+    },
+    "ethereum-up-or-down-january-20-2pm-et": {
+      "up": 1675.71,
+      "down": 1509.24,
+      "total": 3184.95
+    },
+    "ethereum-up-or-down-january-20-3am-et": {
+      "up": 394.9,
+      "down": 1294.55,
+      "total": 1689.45
+    },
+    "ethereum-up-or-down-january-20-3pm-et": {
+      "up": 1377.5,
+      "down": 1090.36,
+      "total": 2467.86
+    },
+    "ethereum-up-or-down-january-20-4am-et": {
+      "up": 320.88,
+      "down": 727.47,
+      "total": 1048.35
+    },
+    "ethereum-up-or-down-january-20-4pm-et": {
+      "up": 469.74,
+      "down": 1172.35,
+      "total": 1642.1
+    },
+    "ethereum-up-or-down-january-20-5am-et": {
+      "up": 1078.81,
+      "down": 360.86,
+      "total": 1439.67
+    },
+    "ethereum-up-or-down-january-20-5pm-et": {
+      "up": 968.11,
+      "down": 2082.47,
+      "total": 3050.58
+    },
+    "ethereum-up-or-down-january-20-6am-et": {
+      "up": 1892.59,
+      "down": 604.82,
+      "total": 2497.41
+    },
+    "ethereum-up-or-down-january-20-6pm-et": {
+      "up": 545.56,
+      "down": 1245.6,
+      "total": 1791.16
+    },
+    "ethereum-up-or-down-january-20-7am-et": {
+      "up": 1664.64,
+      "down": 1950.83,
+      "total": 3615.46
+    },
+    "ethereum-up-or-down-january-20-7pm-et": {
+      "up": 1611.76,
+      "down": 1408.79,
+      "total": 3020.55
+    },
+    "ethereum-up-or-down-january-20-8am-et": {
+      "up": 245.29,
+      "down": 1379.17,
+      "total": 1624.47
+    },
+    "ethereum-up-or-down-january-20-8pm-et": {
+      "up": 1108.11,
+      "down": 561.41,
+      "total": 1669.51
+    },
+    "ethereum-up-or-down-january-20-9am-et": {
+      "up": 1701.75,
+      "down": 2799.18,
+      "total": 4500.93
+    },
+    "ethereum-up-or-down-january-20-9pm-et": {
+      "up": 1503.48,
+      "down": 1339.64,
+      "total": 2843.12
+    },
+    "ethereum-up-or-down-january-21-12am-et": {
+      "up": 1177.9,
+      "down": 538.06,
+      "total": 1715.96
+    },
+    "ethereum-up-or-down-january-21-2am-et": {
+      "up": 843.51,
+      "down": 1303.83,
+      "total": 2147.34
+    },
+    "ethereum-up-or-down-january-21-3am-et": {
+      "up": 693.84,
+      "down": 1436.47,
+      "total": 2130.31
+    },
+    "ethereum-up-or-down-january-21-4am-et": {
+      "up": 343.32,
+      "down": 169.84,
+      "total": 513.17
+    },
+    "ethereum-up-or-down-january-3-10pm-et": {
+      "up": 677.86,
+      "down": 318.85,
+      "total": 996.72
+    },
+    "ethereum-up-or-down-january-3-11pm-et": {
+      "up": 1245.56,
+      "down": 412.92,
+      "total": 1658.49
+    },
+    "ethereum-up-or-down-january-3-9pm-et": {
+      "up": 443.51,
+      "down": 888.06,
+      "total": 1331.56
+    },
+    "ethereum-up-or-down-january-4-10am-et": {
+      "up": 346.52,
+      "down": 574.12,
+      "total": 920.63
+    },
+    "ethereum-up-or-down-january-4-10pm-et": {
+      "up": 326.62,
+      "down": 483.32,
+      "total": 809.94
+    },
+    "ethereum-up-or-down-january-4-11am-et": {
+      "up": 740.13,
+      "down": 581.56,
+      "total": 1321.68
+    },
+    "ethereum-up-or-down-january-4-11pm-et": {
+      "up": 142.02,
+      "down": 387.99,
+      "total": 530.01
+    },
+    "ethereum-up-or-down-january-4-12am-et": {
+      "up": 1060.33,
+      "down": 891.23,
+      "total": 1951.56
+    },
+    "ethereum-up-or-down-january-4-12pm-et": {
+      "up": 992.13,
+      "down": 909.07,
+      "total": 1901.19
+    },
+    "ethereum-up-or-down-january-4-1am-et": {
+      "up": 1325.79,
+      "down": 1058.54,
+      "total": 2384.33
+    },
+    "ethereum-up-or-down-january-4-1pm-et": {
+      "up": 277.41,
+      "down": 1082.22,
+      "total": 1359.63
+    },
+    "ethereum-up-or-down-january-4-2am-et": {
+      "up": 1422.49,
+      "down": 1009.2,
+      "total": 2431.69
+    },
+    "ethereum-up-or-down-january-4-2pm-et": {
+      "up": 419.52,
+      "down": 1107.14,
+      "total": 1526.66
+    },
+    "ethereum-up-or-down-january-4-3am-et": {
+      "up": 251.05,
+      "down": 911.39,
+      "total": 1162.44
+    },
+    "ethereum-up-or-down-january-4-3pm-et": {
+      "up": 378.63,
+      "down": 133.0,
+      "total": 511.63
+    },
+    "ethereum-up-or-down-january-4-4am-et": {
+      "up": 735.15,
+      "down": 622.16,
+      "total": 1357.3
+    },
+    "ethereum-up-or-down-january-4-4pm-et": {
+      "up": 1017.36,
+      "down": 649.35,
+      "total": 1666.72
+    },
+    "ethereum-up-or-down-january-4-5am-et": {
+      "up": 895.86,
+      "down": 572.22,
+      "total": 1468.08
+    },
+    "ethereum-up-or-down-january-4-5pm-et": {
+      "up": 505.53,
+      "down": 794.34,
+      "total": 1299.87
+    },
+    "ethereum-up-or-down-january-4-6am-et": {
+      "up": 234.73,
+      "down": 621.21,
+      "total": 855.94
+    },
+    "ethereum-up-or-down-january-4-6pm-et": {
+      "up": 1184.24,
+      "down": 640.87,
+      "total": 1825.11
+    },
+    "ethereum-up-or-down-january-4-7am-et": {
+      "up": 715.03,
+      "down": 800.62,
+      "total": 1515.66
+    },
+    "ethereum-up-or-down-january-4-7pm-et": {
+      "up": 1392.34,
+      "down": 717.0,
+      "total": 2109.34
+    },
+    "ethereum-up-or-down-january-4-8am-et": {
+      "up": 747.53,
+      "down": 603.38,
+      "total": 1350.9
+    },
+    "ethereum-up-or-down-january-4-8pm-et": {
+      "up": 826.52,
+      "down": 411.4,
+      "total": 1237.92
+    },
+    "ethereum-up-or-down-january-4-9am-et": {
+      "up": 144.74,
+      "down": 293.35,
+      "total": 438.09
+    },
+    "ethereum-up-or-down-january-4-9pm-et": {
+      "up": 350.58,
+      "down": 1060.82,
+      "total": 1411.4
+    },
+    "ethereum-up-or-down-january-5-10am-et": {
+      "up": 524.2,
+      "down": 469.33,
+      "total": 993.53
+    },
+    "ethereum-up-or-down-january-5-10pm-et": {
+      "up": 1129.63,
+      "down": 500.78,
+      "total": 1630.41
+    },
+    "ethereum-up-or-down-january-5-11am-et": {
+      "up": 386.95,
+      "down": 735.48,
+      "total": 1122.43
+    },
+    "ethereum-up-or-down-january-5-11pm-et": {
+      "up": 795.6,
+      "down": 615.48,
+      "total": 1411.07
+    },
+    "ethereum-up-or-down-january-5-12am-et": {
+      "up": 496.66,
+      "down": 938.28,
+      "total": 1434.94
+    },
+    "ethereum-up-or-down-january-5-12pm-et": {
+      "up": 644.68,
+      "down": 810.71,
+      "total": 1455.39
+    },
+    "ethereum-up-or-down-january-5-1am-et": {
+      "up": 994.4,
+      "down": 1061.32,
+      "total": 2055.72
+    },
+    "ethereum-up-or-down-january-5-1pm-et": {
+      "up": 382.37,
+      "down": 695.96,
+      "total": 1078.33
+    },
+    "ethereum-up-or-down-january-5-2am-et": {
+      "up": 1102.14,
+      "down": 819.35,
+      "total": 1921.49
+    },
+    "ethereum-up-or-down-january-5-2pm-et": {
+      "up": 305.64,
+      "down": 680.36,
+      "total": 986.01
+    },
+    "ethereum-up-or-down-january-5-3am-et": {
+      "up": 727.56,
+      "down": 315.53,
+      "total": 1043.09
+    },
+    "ethereum-up-or-down-january-5-3pm-et": {
+      "up": 868.1,
+      "down": 389.93,
+      "total": 1258.02
+    },
+    "ethereum-up-or-down-january-5-4am-et": {
+      "up": 899.76,
+      "down": 910.25,
+      "total": 1810.02
+    },
+    "ethereum-up-or-down-january-5-4pm-et": {
+      "up": 850.38,
+      "down": 1069.45,
+      "total": 1919.83
+    },
+    "ethereum-up-or-down-january-5-5am-et": {
+      "up": 1033.35,
+      "down": 618.53,
+      "total": 1651.88
+    },
+    "ethereum-up-or-down-january-5-5pm-et": {
+      "up": 1011.88,
+      "down": 660.55,
+      "total": 1672.43
+    },
+    "ethereum-up-or-down-january-5-6am-et": {
+      "up": 926.5,
+      "down": 630.86,
+      "total": 1557.36
+    },
+    "ethereum-up-or-down-january-5-6pm-et": {
+      "up": 333.71,
+      "down": 1006.14,
+      "total": 1339.84
+    },
+    "ethereum-up-or-down-january-5-7am-et": {
+      "up": 395.97,
+      "down": 914.54,
+      "total": 1310.51
+    },
+    "ethereum-up-or-down-january-5-7pm-et": {
+      "up": 171.72,
+      "down": 390.93,
+      "total": 562.64
+    },
+    "ethereum-up-or-down-january-5-8am-et": {
+      "up": 402.04,
+      "down": 809.48,
+      "total": 1211.52
+    },
+    "ethereum-up-or-down-january-5-8pm-et": {
+      "up": 902.14,
+      "down": 283.49,
+      "total": 1185.63
+    },
+    "ethereum-up-or-down-january-5-9am-et": {
+      "up": 1615.63,
+      "down": 1897.88,
+      "total": 3513.51
+    },
+    "ethereum-up-or-down-january-5-9pm-et": {
+      "up": 571.59,
+      "down": 903.27,
+      "total": 1474.86
+    },
+    "ethereum-up-or-down-january-6-10am-et": {
+      "up": 776.47,
+      "down": 883.57,
+      "total": 1660.04
+    },
+    "ethereum-up-or-down-january-6-10pm-et": {
+      "up": 1141.67,
+      "down": 1178.51,
+      "total": 2320.18
+    },
+    "ethereum-up-or-down-january-6-11am-et": {
+      "up": 436.19,
+      "down": 897.36,
+      "total": 1333.55
+    },
+    "ethereum-up-or-down-january-6-11pm-et": {
+      "up": 518.88,
+      "down": 945.53,
+      "total": 1464.41
+    },
+    "ethereum-up-or-down-january-6-12am-et": {
+      "up": 818.39,
+      "down": 993.23,
+      "total": 1811.62
+    },
+    "ethereum-up-or-down-january-6-12pm-et": {
+      "up": 399.92,
+      "down": 684.15,
+      "total": 1084.07
+    },
+    "ethereum-up-or-down-january-6-1am-et": {
+      "up": 730.95,
+      "down": 308.39,
+      "total": 1039.34
+    },
+    "ethereum-up-or-down-january-6-1pm-et": {
+      "up": 579.71,
+      "down": 168.66,
+      "total": 748.37
+    },
+    "ethereum-up-or-down-january-6-2am-et": {
+      "up": 139.38,
+      "down": 435.09,
+      "total": 574.47
+    },
+    "ethereum-up-or-down-january-6-2pm-et": {
+      "up": 505.66,
+      "down": 200.65,
+      "total": 706.31
+    },
+    "ethereum-up-or-down-january-6-3am-et": {
+      "up": 981.96,
+      "down": 800.59,
+      "total": 1782.55
+    },
+    "ethereum-up-or-down-january-6-3pm-et": {
+      "up": 530.32,
+      "down": 190.81,
+      "total": 721.12
+    },
+    "ethereum-up-or-down-january-6-4am-et": {
+      "up": 1353.19,
+      "down": 586.16,
+      "total": 1939.34
+    },
+    "ethereum-up-or-down-january-6-4pm-et": {
+      "up": 892.79,
+      "down": 281.03,
+      "total": 1173.82
+    },
+    "ethereum-up-or-down-january-6-5am-et": {
+      "up": 600.16,
+      "down": 244.54,
+      "total": 844.7
+    },
+    "ethereum-up-or-down-january-6-5pm-et": {
+      "up": 1292.33,
+      "down": 1483.13,
+      "total": 2775.45
+    },
+    "ethereum-up-or-down-january-6-6am-et": {
+      "up": 1226.04,
+      "down": 278.52,
+      "total": 1504.56
+    },
+    "ethereum-up-or-down-january-6-6pm-et": {
+      "up": 1139.94,
+      "down": 463.87,
+      "total": 1603.81
+    },
+    "ethereum-up-or-down-january-6-7am-et": {
+      "up": 1247.21,
+      "down": 814.38,
+      "total": 2061.59
+    },
+    "ethereum-up-or-down-january-6-7pm-et": {
+      "up": 364.85,
+      "down": 1031.47,
+      "total": 1396.32
+    },
+    "ethereum-up-or-down-january-6-8am-et": {
+      "up": 617.72,
+      "down": 1150.55,
+      "total": 1768.27
+    },
+    "ethereum-up-or-down-january-6-8pm-et": {
+      "up": 1055.35,
+      "down": 1629.04,
+      "total": 2684.39
+    },
+    "ethereum-up-or-down-january-6-9am-et": {
+      "up": 1846.29,
+      "down": 466.53,
+      "total": 2312.82
+    },
+    "ethereum-up-or-down-january-6-9pm-et": {
+      "up": 1014.13,
+      "down": 496.5,
+      "total": 1510.63
+    },
+    "ethereum-up-or-down-january-7-10am-et": {
+      "up": 300.69,
+      "down": 1058.82,
+      "total": 1359.52
+    },
+    "ethereum-up-or-down-january-7-10pm-et": {
+      "up": 379.89,
+      "down": 674.01,
+      "total": 1053.9
+    },
+    "ethereum-up-or-down-january-7-11am-et": {
+      "up": 1054.17,
+      "down": 1084.08,
+      "total": 2138.25
+    },
+    "ethereum-up-or-down-january-7-11pm-et": {
+      "up": 484.87,
+      "down": 199.58,
+      "total": 684.45
+    },
+    "ethereum-up-or-down-january-7-12am-et": {
+      "up": 968.8,
+      "down": 1052.89,
+      "total": 2021.69
+    },
+    "ethereum-up-or-down-january-7-12pm-et": {
+      "up": 1621.65,
+      "down": 883.55,
+      "total": 2505.2
+    },
+    "ethereum-up-or-down-january-7-1am-et": {
+      "up": 1228.82,
+      "down": 490.09,
+      "total": 1718.91
+    },
+    "ethereum-up-or-down-january-7-1pm-et": {
+      "up": 1123.8,
+      "down": 1226.43,
+      "total": 2350.23
+    },
+    "ethereum-up-or-down-january-7-2am-et": {
+      "up": 998.25,
+      "down": 218.88,
+      "total": 1217.13
+    },
+    "ethereum-up-or-down-january-7-2pm-et": {
+      "up": 1523.55,
+      "down": 1784.84,
+      "total": 3308.39
+    },
+    "ethereum-up-or-down-january-7-3am-et": {
+      "up": 1178.07,
+      "down": 809.47,
+      "total": 1987.54
+    },
+    "ethereum-up-or-down-january-7-3pm-et": {
+      "up": 369.42,
+      "down": 837.77,
+      "total": 1207.19
+    },
+    "ethereum-up-or-down-january-7-4am-et": {
+      "up": 170.36,
+      "down": 684.88,
+      "total": 855.24
+    },
+    "ethereum-up-or-down-january-7-4pm-et": {
+      "up": 533.28,
+      "down": 234.91,
+      "total": 768.19
+    },
+    "ethereum-up-or-down-january-7-5am-et": {
+      "up": 1015.05,
+      "down": 408.21,
+      "total": 1423.26
+    },
+    "ethereum-up-or-down-january-7-5pm-et": {
+      "up": 1094.36,
+      "down": 836.54,
+      "total": 1930.9
+    },
+    "ethereum-up-or-down-january-7-6am-et": {
+      "up": 1546.87,
+      "down": 729.18,
+      "total": 2276.05
+    },
+    "ethereum-up-or-down-january-7-6pm-et": {
+      "up": 1906.2,
+      "down": 1001.19,
+      "total": 2907.39
+    },
+    "ethereum-up-or-down-january-7-7am-et": {
+      "up": 638.64,
+      "down": 1422.95,
+      "total": 2061.58
+    },
+    "ethereum-up-or-down-january-7-7pm-et": {
+      "up": 599.77,
+      "down": 967.26,
+      "total": 1567.04
+    },
+    "ethereum-up-or-down-january-7-8am-et": {
+      "up": 1588.99,
+      "down": 1506.52,
+      "total": 3095.52
+    },
+    "ethereum-up-or-down-january-7-8pm-et": {
+      "up": 1164.77,
+      "down": 659.72,
+      "total": 1824.49
+    },
+    "ethereum-up-or-down-january-7-9am-et": {
+      "up": 754.69,
+      "down": 2090.87,
+      "total": 2845.56
+    },
+    "ethereum-up-or-down-january-7-9pm-et": {
+      "up": 788.22,
+      "down": 1128.9,
+      "total": 1917.11
+    },
+    "ethereum-up-or-down-january-8-10am-et": {
+      "up": 629.01,
+      "down": 288.11,
+      "total": 917.12
+    },
+    "ethereum-up-or-down-january-8-10pm-et": {
+      "up": 705.25,
+      "down": 420.87,
+      "total": 1126.13
+    },
+    "ethereum-up-or-down-january-8-11am-et": {
+      "up": 335.18,
+      "down": 382.8,
+      "total": 717.98
+    },
+    "ethereum-up-or-down-january-8-11pm-et": {
+      "up": 804.09,
+      "down": 1065.59,
+      "total": 1869.68
+    },
+    "ethereum-up-or-down-january-8-12am-et": {
+      "up": 493.53,
+      "down": 465.41,
+      "total": 958.94
+    },
+    "ethereum-up-or-down-january-8-12pm-et": {
+      "up": 719.26,
+      "down": 721.71,
+      "total": 1440.97
+    },
+    "ethereum-up-or-down-january-8-1am-et": {
+      "up": 289.02,
+      "down": 987.19,
+      "total": 1276.21
+    },
+    "ethereum-up-or-down-january-8-1pm-et": {
+      "up": 186.45,
+      "down": 578.69,
+      "total": 765.14
+    },
+    "ethereum-up-or-down-january-8-2am-et": {
+      "up": 893.25,
+      "down": 638.89,
+      "total": 1532.14
+    },
+    "ethereum-up-or-down-january-8-2pm-et": {
+      "up": 490.17,
+      "down": 629.3,
+      "total": 1119.47
+    },
+    "ethereum-up-or-down-january-8-3am-et": {
+      "up": 649.37,
+      "down": 628.17,
+      "total": 1277.54
+    },
+    "ethereum-up-or-down-january-8-3pm-et": {
+      "up": 175.62,
+      "down": 642.43,
+      "total": 818.05
+    },
+    "ethereum-up-or-down-january-8-4am-et": {
+      "up": 846.35,
+      "down": 1308.82,
+      "total": 2155.17
+    },
+    "ethereum-up-or-down-january-8-4pm-et": {
+      "up": 625.83,
+      "down": 341.11,
+      "total": 966.94
+    },
+    "ethereum-up-or-down-january-8-5am-et": {
+      "up": 994.68,
+      "down": 650.23,
+      "total": 1644.92
+    },
+    "ethereum-up-or-down-january-8-5pm-et": {
+      "up": 682.28,
+      "down": 880.28,
+      "total": 1562.56
+    },
+    "ethereum-up-or-down-january-8-6am-et": {
+      "up": 489.4,
+      "down": 1284.32,
+      "total": 1773.72
+    },
+    "ethereum-up-or-down-january-8-6pm-et": {
+      "up": 480.81,
+      "down": 887.3,
+      "total": 1368.11
+    },
+    "ethereum-up-or-down-january-8-7am-et": {
+      "up": 134.81,
+      "down": 555.59,
+      "total": 690.4
+    },
+    "ethereum-up-or-down-january-8-7pm-et": {
+      "up": 917.63,
+      "down": 630.37,
+      "total": 1548.0
+    },
+    "ethereum-up-or-down-january-8-8am-et": {
+      "up": 811.95,
+      "down": 727.5,
+      "total": 1539.45
+    },
+    "ethereum-up-or-down-january-8-8pm-et": {
+      "up": 939.64,
+      "down": 1364.66,
+      "total": 2304.3
+    },
+    "ethereum-up-or-down-january-8-9am-et": {
+      "up": 693.04,
+      "down": 1736.51,
+      "total": 2429.55
+    },
+    "ethereum-up-or-down-january-8-9pm-et": {
+      "up": 1163.44,
+      "down": 259.35,
+      "total": 1422.78
+    },
+    "ethereum-up-or-down-january-9-10am-et": {
+      "up": 708.38,
+      "down": 599.25,
+      "total": 1307.64
+    },
+    "ethereum-up-or-down-january-9-10pm-et": {
+      "up": 574.91,
+      "down": 1174.68,
+      "total": 1749.59
+    },
+    "ethereum-up-or-down-january-9-11am-et": {
+      "up": 318.43,
+      "down": 113.68,
+      "total": 432.12
+    },
+    "ethereum-up-or-down-january-9-11pm-et": {
+      "up": 254.37,
+      "down": 718.81,
+      "total": 973.18
+    },
+    "ethereum-up-or-down-january-9-12am-et": {
+      "up": 930.73,
+      "down": 817.27,
+      "total": 1747.99
+    },
+    "ethereum-up-or-down-january-9-12pm-et": {
+      "up": 139.33,
+      "down": 320.35,
+      "total": 459.67
+    },
+    "ethereum-up-or-down-january-9-1am-et": {
+      "up": 888.64,
+      "down": 456.17,
+      "total": 1344.81
+    },
+    "ethereum-up-or-down-january-9-1pm-et": {
+      "up": 162.51,
+      "down": 427.81,
+      "total": 590.32
+    },
+    "ethereum-up-or-down-january-9-2am-et": {
+      "up": 258.91,
+      "down": 749.76,
+      "total": 1008.67
+    },
+    "ethereum-up-or-down-january-9-2pm-et": {
+      "up": 107.26,
+      "down": 305.93,
+      "total": 413.18
+    },
+    "ethereum-up-or-down-january-9-3am-et": {
+      "up": 588.74,
+      "down": 856.47,
+      "total": 1445.21
+    },
+    "ethereum-up-or-down-january-9-3pm-et": {
+      "up": 691.43,
+      "down": 414.59,
+      "total": 1106.02
+    },
+    "ethereum-up-or-down-january-9-4am-et": {
+      "up": 543.13,
+      "down": 173.2,
+      "total": 716.33
+    },
+    "ethereum-up-or-down-january-9-4pm-et": {
+      "up": 953.74,
+      "down": 390.26,
+      "total": 1344.0
+    },
+    "ethereum-up-or-down-january-9-5am-et": {
+      "up": 535.87,
+      "down": 284.61,
+      "total": 820.47
+    },
+    "ethereum-up-or-down-january-9-5pm-et": {
+      "up": 725.05,
+      "down": 1288.49,
+      "total": 2013.55
+    },
+    "ethereum-up-or-down-january-9-6am-et": {
+      "up": 974.21,
+      "down": 630.06,
+      "total": 1604.27
+    },
+    "ethereum-up-or-down-january-9-6pm-et": {
+      "up": 938.56,
+      "down": 486.51,
+      "total": 1425.07
+    },
+    "ethereum-up-or-down-january-9-7am-et": {
+      "up": 450.86,
+      "down": 925.24,
+      "total": 1376.1
+    },
+    "ethereum-up-or-down-january-9-7pm-et": {
+      "up": 406.59,
+      "down": 561.19,
+      "total": 967.78
+    },
+    "ethereum-up-or-down-january-9-8am-et": {
+      "up": 1485.41,
+      "down": 660.96,
+      "total": 2146.38
+    },
+    "ethereum-up-or-down-january-9-8pm-et": {
+      "up": 518.75,
+      "down": 138.06,
+      "total": 656.8
+    },
+    "ethereum-up-or-down-january-9-9am-et": {
+      "up": 456.82,
+      "down": 966.5,
+      "total": 1423.32
+    },
+    "ethereum-up-or-down-january-9-9pm-et": {
+      "up": 530.74,
+      "down": 531.9,
+      "total": 1062.65
+    }
+  }
+}
